@@ -43,5 +43,12 @@ class AccountMove(osv.osv):
         sync.syncronize(cr, uid, 'account.move', 'unlink', ids, {})
         return True
 
+    def force_sync(self, cr, uid, ids, context=None):
+        sync = self.pool.get('som.sync')
+        for id in ids:
+            am_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
+            am_data = self.mapping(cr, uid, id, am_data)
+            sync.syncronize(cr, uid, 'account.move', 'create', id, am_data)
+
 
 AccountMove()

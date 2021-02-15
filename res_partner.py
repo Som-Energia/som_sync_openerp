@@ -36,5 +36,11 @@ class ResPartner(osv.osv):
         sync.syncronize(cr, uid, 'res.partner', 'unlink', ids, {})
         return True
 
+    def force_sync(self, cr, uid, ids, context=None):
+        sync = self.pool.get('som.sync')
+        for id in ids:
+            rp_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
+            rp_data = self.mapping(cr, uid, id, rp_data)
+            sync.syncronize(cr, uid, 'res.partner', 'create', id, rp_data)
 
 ResPartner()

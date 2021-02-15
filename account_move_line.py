@@ -31,7 +31,7 @@ class AccountMoveLine(osv.osv):
             sync.syncronize(cr, uid, 'account.move.line', 'create', ids, values)
         return ids
                                                                            
-    def write(self, cr, uid, ids, vals, context=None):
+    def write(self, cr, uid, ids, vals, context=None, check=True, update_check=True):
         super(AccountMoveLine, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
 
@@ -45,5 +45,11 @@ class AccountMoveLine(osv.osv):
         sync.syncronize(cr, uid, 'account.move.line', 'unlink', ids, {})
         return True
 
+    def force_sync(self, cr, uid, ids, context=None):
+        sync = self.pool.get('som.sync')
+        for id in ids:
+            aml_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
+            aml_data = self.mapping(cr, uid, id, aml_data)
+            sync.syncronize(cr, uid, 'account.move.line', 'create', id, aml_data)
 
 AccountMoveLine()
