@@ -7,38 +7,40 @@ class AccountMove(osv.osv):
     _name = 'account.move'
     _inherit = 'account.move'
 
+    FIELDS_TO_SYNC = ['name', 'date', 'journal_id','state', 'partner_id']
 
-    def mapping(self, cr, uid, move_id):
-        values = self.read(cr, uid, move_id, ['name', 'date', 'journal_id',
-            'state', 'partner_id'])
-        #TODO
-        #values['openerp_id'] = partner_id
-        #values['vat_required'] = values['vat']
-        #values.pop('vat')
+    def mapping(self, cr, uid, ids, vals):
+        values = {}
+        if any(k in vals for k in self.FIELDS_TO_SYNC):
+            values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
+        if 'journal_id' in values:
+            journal_id = values ['journal_id'][0]
+            values ['journal_id'] = journal_id
+        if 'partner_id' in values:
+            partner_id = values ['partner_id'][0]
+            values ['partner_id'] = partner_id
         return values
 
     def create(self, cr, uid, vals, context=None):
-        move_id = super(AccountMove, self).create(cr, uid, vals, context=context)
-        values = self.mapping(cr, uid, move_id)
-
-        sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.move', 'create', values)
-        return move_id
+        ids = super(AccountMove, self).create(cr, uid, vals, context=context)
+        values = self.mapping(cr, uid, ids, vals)
+        if values:
+            sync = self.pool.get('som.sync')
+            sync.syncronize(cr, uid, 'account.move', 'create', ids, values)
+        return ids
                                                                            
     def write(self, cr, uid, ids, vals, context=None):
-        move_id = super(AccountMove, self).write(cr, uid, ids, vals, context=context)
-        values = self.mapping(cr, uid, move_id)
+        super(AccountMove, self).write(cr, uid, ids, vals, context=context)
+        values = self.mapping(cr, uid, ids, vals)
 
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.move', 'write', values)
-        return move_id
+        sync.syncronize(cr, uid, 'account.move', 'write', ids, values)
+        return True
 
     def unlink(self, cr, uid, ids, context=None):
         super(AccountMove, self).unlink(cr, uid, ids, context=context)
-
-        values = {'openerp_id': ids}
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.move', 'unlink', values)
+        sync.syncronize(cr, uid, 'account.move', 'unlink', ids, {})
         return True
 
 

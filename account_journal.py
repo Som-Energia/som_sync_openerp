@@ -7,38 +7,35 @@ class AccountJournal(osv.osv):
     _name = 'account.journal'
     _inherit = 'account.journal'
 
+    FIELDS_TO_SYNC = ['name', 'code', 'active', 'type']
 
-    def mapping(self, cr, uid, journal_id):
-        values = self.read(cr, uid, journal_id, ['name', 'type', 'code'])
-        #TODO
-        #values['openerp_id'] = partner_id
-        #values['vat_required'] = values['vat']
-        #values.pop('vat')
+    def mapping(self, cr, uid, ids, vals):
+        values = {}
+        if any(k in vals for k in self.FIELDS_TO_SYNC):
+            values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
         return values
 
     def create(self, cr, uid, vals, context=None):
-        journal_id = super(AccountJournal, self).create(cr, uid, vals, context=context)
-        values = self.mapping(cr, uid, journal_id)
-
-        sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.journal', 'create', values)
-        return journal_id
+        ids = super(AccountJournal, self).create(cr, uid, vals, context=context)
+        values = self.mapping(cr, uid, ids, vals)
+        if values:
+            sync = self.pool.get('som.sync')
+            sync.syncronize(cr, uid, 'account.journal', 'create', ids, values)
+        return ids
                                                                            
     def write(self, cr, uid, ids, vals, context=None):
-        journal_id = super(AccountJournal, self).write(cr, uid, ids, vals, context=context)
-        values = self.mapping(cr, uid, journal_id)
+        super(AccountJournal, self).write(cr, uid, ids, vals, context=context)
+        values = self.mapping(cr, uid, ids, vals)
 
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.journal', 'write', values)
-        return journal_id
+        sync.syncronize(cr, uid, 'account.journal', 'write', ids, values)
+        return True
 
     def unlink(self, cr, uid, ids, context=None):
         super(AccountJournal, self).unlink(cr, uid, ids, context=context)
-
-        values = {'openerp_id': ids}
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.journal', 'unlink', values)
+        sync.syncronize(cr, uid, 'account.journal', 'unlink', ids, {})
         return True
 
 
-ResPartner()
+AccountJournal()

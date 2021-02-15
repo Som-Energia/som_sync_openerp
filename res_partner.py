@@ -1,6 +1,7 @@
 # coding=utf-8
 from osv import osv
 
+
 class ResPartner(osv.osv):
     _name = 'res.partner'
     _inherit = 'res.partner'
@@ -11,9 +12,6 @@ class ResPartner(osv.osv):
         values = {}
         if any(k in vals for k in self.FIELDS_TO_SYNC):
             values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
-
-        #values['vat_required'] = values['vat']
-        #values.pop('vat')
         return values
 
     def create(self, cr, uid, vals, context=None):
