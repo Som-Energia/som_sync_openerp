@@ -77,23 +77,25 @@ class SomSync(osv.osv_memory):
     def syncronize(self, cursor, uid, model, action, openerp_ids, vals):
         self.get_connection()
         vals = self.mapping_fk(cursor, uid, model, vals)
+        if isinstance(openerp_ids, list):
+            openerp_ids = openerp_ids[0]
 
         if action == 'create':
             vals['openerp_id'] = openerp_ids
             self.client.execute(model, action, vals)
         elif action == 'write':
-            odoo_id = self.client.execute(model, 'search', [('openerp_id', 'in', openerp_ids)])
+            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)])
             for n in odoo_id:
                 self.client.execute(model, action, n, vals)
             if not odoo_id:
                 Model = self.pool.get(model)
-                values = Model.read(cursor, uid, openerp_ids[0], Model.FIELDS_TO_SYNC)
-                vals = Model.mapping(cursor, uid, openerp_ids[0], values)
+                values = Model.read(cursor, uid, openerp_ids, Model.FIELDS_TO_SYNC)
+                vals = Model.mapping(cursor, uid, openerp_ids, values)
                 vals = self.mapping_fk(cursor, uid, model, vals)
-                vals['openerp_id'] = openerp_ids[0]
+                vals['openerp_id'] = openerp_ids
                 self.client.execute(model, 'create', vals)
         elif action == 'unlink':
-            odoo_id = self.client.execute(model, 'search', [('openerp_id', 'in', openerp_ids)])
+            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)])
             for n in odoo_id:
                 self.client.execute(model, action, n)
 

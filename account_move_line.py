@@ -50,6 +50,6 @@ class AccountMoveLine(osv.osv):
         for id in ids:
             aml_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aml_data = self.mapping(cr, uid, id, aml_data)
-            sync.syncronize(cr, uid, 'account.move.line', 'create', id, aml_data)
+            sync.syncronize(cr, uid, 'account.move.line', 'write', id, aml_data)
 
 AccountMoveLine()

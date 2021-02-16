@@ -41,6 +41,6 @@ class ResPartner(osv.osv):
         for id in ids:
             rp_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             rp_data = self.mapping(cr, uid, id, rp_data)
-            sync.syncronize(cr, uid, 'res.partner', 'create', id, rp_data)
+            sync.syncronize(cr, uid, 'res.partner', 'write', id, rp_data)
 
 ResPartner()

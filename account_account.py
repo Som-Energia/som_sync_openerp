@@ -49,7 +49,7 @@ class AccountAccount(osv.osv):
         for id in ids:
             aa_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aa_data = self.mapping(cr, uid, id, aa_data)
-            sync.syncronize(cr, uid, 'account.account', 'create', id, aa_data)
+            sync.syncronize(cr, uid, 'account.account', 'write', id, aa_data)
 
 AccountAccount()
 

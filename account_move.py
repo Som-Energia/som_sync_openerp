@@ -7,7 +7,7 @@ class AccountMove(osv.osv):
     _name = 'account.move'
     _inherit = 'account.move'
 
-    FIELDS_TO_SYNC = ['name', 'date', 'journal_id','state', 'partner_id']
+    FIELDS_TO_SYNC = ['name', 'date', 'journal_id','state', 'partner_id', 'amount']
 
     def mapping(self, cr, uid, ids, vals):
         values = {}
@@ -48,7 +48,7 @@ class AccountMove(osv.osv):
         for id in ids:
             am_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             am_data = self.mapping(cr, uid, id, am_data)
-            sync.syncronize(cr, uid, 'account.move', 'create', id, am_data)
+            sync.syncronize(cr, uid, 'account.move', 'write', id, am_data)
 
 
 AccountMove()
