@@ -74,30 +74,32 @@ class SomSync(osv.osv_memory):
 
 
     @job(queue='sync_odoo')
-    def syncronize(self, cursor, uid, model, action, openerp_ids, vals):
+    def syncronize(self, cursor, uid, model, action, openerp_ids, vals, context={}, check=True, update_check=True):
         self.get_connection()
         vals = self.mapping_fk(cursor, uid, model, vals)
         if isinstance(openerp_ids, list):
             openerp_ids = openerp_ids[0]
 
         if action == 'create':
-            vals['openerp_id'] = openerp_ids
-            self.client.execute(model, action, vals)
+            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
+            if not odoo_id:
+                vals['openerp_id'] = openerp_ids
+                self.client.execute(model, action, vals, context)
         elif action == 'write':
-            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)])
+            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
             for n in odoo_id:
-                self.client.execute(model, action, n, vals)
+                self.client.execute(model, action, n, vals, context, check, update_check)
             if not odoo_id:
                 Model = self.pool.get(model)
                 values = Model.read(cursor, uid, openerp_ids, Model.FIELDS_TO_SYNC)
                 vals = Model.mapping(cursor, uid, openerp_ids, values)
                 vals = self.mapping_fk(cursor, uid, model, vals)
                 vals['openerp_id'] = openerp_ids
-                self.client.execute(model, 'create', vals)
+                self.client.execute(model, 'create', vals, context)
         elif action == 'unlink':
-            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)])
+            odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
             for n in odoo_id:
-                self.client.execute(model, action, n)
+                self.client.execute(model, action, n, context)
 
 
 SomSync()
