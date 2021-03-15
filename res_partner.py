@@ -14,29 +14,36 @@ class ResPartner(osv.osv):
             values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
         return values
 
-    def create(self, cr, uid, vals, context=None):
+    def create(self, cr, uid, vals, context={}):
         ids = super(ResPartner, self).create(cr, uid, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'res.partner', 'create', ids, values)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'res.partner', 'create', ids, values,
+                context=context)
         return ids
                                                                            
-    def write(self, cr, uid, ids, vals, context=None):
+    def write(self, cr, uid, ids, vals, context={}):
         super(ResPartner, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'res.partner', 'write', ids, values)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'res.partner', 'write', ids, values,
+                    context=context)
         return True
 
-    def unlink(self, cr, uid, ids, context=None):
+
+    def unlink(self, cr, uid, ids, context={}):
         super(ResPartner, self).unlink(cr, uid, ids, context=context)
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'res.partner', 'unlink', ids, {})
+        context['prev_txid'] = cr.txid
+        sync.syncronize(cr, uid, 'res.partner', 'unlink', ids, {},
+                context=context)
         return True
 
-    def force_sync(self, cr, uid, ids, context=None):
+    def force_sync(self, cr, uid, ids, context={}):
         sync = self.pool.get('som.sync')
         for id in ids:
             rp_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)

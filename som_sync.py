@@ -2,7 +2,8 @@ from odoo_rpc_client import Client
 from oorq.decorators import job
 from osv import osv, fields
 from tools import config
-
+import time
+import netsvc
 
 class SomSync(osv.osv_memory):
     "Sync manager"
@@ -75,6 +76,23 @@ class SomSync(osv.osv_memory):
 
     @job(queue='sync_odoo')
     def syncronize(self, cursor, uid, model, action, openerp_ids, vals, context={}, check=True, update_check=True):
+        if 'prev_txid' in context:
+            seconds = 1
+            for n in range(10):
+                cursor._obj.execute("select txid_status(%s)", (int(context['prev_txid']),))
+                result = cursor._obj.fetchone()[0]
+                if result != 'in progress':
+                    break
+                time.sleep(seconds)
+                seconds = seconds * 2
+
+            if result == 'in progress':
+                raise Exception("Transaction %d in progress. Sync with Odoo timeout. Retry later" % int(cursor.txid))
+            elif result == 'aborted' or not result:
+                return True
+            elif result != 'committed':
+                raise Exception("Unknown error in Postgres txid type: %s" % str(result))
+
         self.get_connection()
         vals = self.mapping_fk(cursor, uid, model, vals)
         if isinstance(openerp_ids, list):

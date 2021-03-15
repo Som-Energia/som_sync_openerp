@@ -8,6 +8,7 @@ class AccountMoveLine(osv.osv):
     _inherit = 'account.move.line'
 
     FIELDS_TO_SYNC = ['name', 'account_id', 'move_id', 'date_maturity', 'partner_id', 'debit', 'credit']
+
     def mapping(self, cr, uid, ids, vals):
         values = {}
         if any(k in vals for k in self.FIELDS_TO_SYNC):
@@ -29,6 +30,7 @@ class AccountMoveLine(osv.osv):
         if values:
             sync = self.pool.get('som.sync')
             context['check_move_validity'] = False
+            context['prev_txid'] = cr.txid
             sync.syncronize(cr, uid, 'account.move.line', 'create', ids, values, context)
         return ids
                                                                            
@@ -38,13 +40,17 @@ class AccountMoveLine(osv.osv):
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'account.move.line', 'write', ids, values, check, update_check)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.move.line', 'write', ids, values, check, update_check,
+                context=context)
         return True
 
     def unlink(self, cr, uid, ids, context={}):
         super(AccountMoveLine, self).unlink(cr, uid, ids, context=context)
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.move.line', 'unlink', ids, {})
+        context['prev_txid'] = cr.txid
+        sync.syncronize(cr, uid, 'account.move.line', 'unlink', ids, {},
+            context=context)
         return True
 
     def force_sync(self, cr, uid, ids, context={}):

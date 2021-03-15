@@ -22,29 +22,35 @@ class AccountAccount(osv.osv):
         values['user_type_id'] = user_type
         return values
 
-    def create(self, cr, uid, vals, context=None):
+    def create(self, cr, uid, vals, context={}):
         ids = super(AccountAccount, self).create(cr, uid, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'account.account', 'create', ids, values)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.account', 'create', ids, values,
+                context=context)
         return ids
                                                                            
-    def write(self, cr, uid, ids, vals, context=None):
+    def write(self, cr, uid, ids, vals, context={}):
         super(AccountAccount, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
-
-        sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.account', 'write', ids, values)
+        if values:
+            sync = self.pool.get('som.sync')
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.account', 'write', ids, values,
+                context=context)
         return True
 
-    def unlink(self, cr, uid, ids, context=None):
+    def unlink(self, cr, uid, ids, context={}):
         super(AccountAccount, self).unlink(cr, uid, ids, context=context)
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.account', 'unlink', ids, {})
+        context['prev_txid'] = cr.txid
+        sync.syncronize(cr, uid, 'account.account', 'unlink', ids, {},
+                context=context)
         return True
 
-    def force_sync(self, cr, uid, ids, context=None):
+    def force_sync(self, cr, uid, ids, context={}):
         sync = self.pool.get('som.sync')
         for id in ids:
             aa_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
@@ -66,26 +72,33 @@ class AccountAccountType(osv.osv):
         values['type'] = 'other'
         return values
 
-    def create(self, cr, uid, vals, context=None):
+    def create(self, cr, uid, vals, context={}):
         ids = super(AccountAccountType, self).create(cr, uid, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'account.account.type', 'create', ids, values)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.account.type', 'create', ids, values,
+                context=context)
         return ids
 
-    def write(self, cr, uid, ids, vals, context=None):
+    def write(self, cr, uid, ids, vals, context={}):
         super(AccountAccountType, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
 
-        sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.account.type', 'write', ids, values)
+        if values:
+            sync = self.pool.get('som.sync')
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.account.type', 'write', ids, values,
+                context=context)
         return True
 
-    def unlink(self, cr, uid, ids, context=None):
+    def unlink(self, cr, uid, ids, context={}):
         super(AccountAccountType, self).unlink(cr, uid, ids, context=context)
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.account.type', 'unlink', ids, {})
+        context['prev_txid'] = cr.txid
+        sync.syncronize(cr, uid, 'account.account.type', 'unlink', ids, {},
+            context=context)
         return True
 
 

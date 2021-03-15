@@ -34,13 +34,17 @@ class AccountMove(osv.osv):
         values = self.mapping(cr, uid, ids, vals)
         if values:
             sync = self.pool.get('som.sync')
-            sync.syncronize(cr, uid, 'account.move', 'write', ids, values)
+            context['prev_txid'] = cr.txid
+            sync.syncronize(cr, uid, 'account.move', 'write', ids, values,
+                    context=context)
         return True
 
     def unlink(self, cr, uid, ids, context={}):
         super(AccountMove, self).unlink(cr, uid, ids, context=context)
         sync = self.pool.get('som.sync')
-        sync.syncronize(cr, uid, 'account.move', 'unlink', ids, {})
+        context['prev_txid'] = cr.txid
+        sync.syncronize(cr, uid, 'account.move', 'unlink', ids, {},
+                context=context)
         return True
 
     def force_sync(self, cr, uid, ids, context={}):
