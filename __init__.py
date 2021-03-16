@@ -1,0 +1,6 @@
+import som_sync
+import res_partner
+import account_account
+import account_journal
+import account_move
+import account_move_line
