@@ -55,9 +55,10 @@ class AccountMoveLine(osv.osv):
 
     def force_sync(self, cr, uid, ids, context={}):
         sync = self.pool.get('som.sync')
+        context['check_move_validity'] = False
         for id in ids:
             aml_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aml_data = self.mapping(cr, uid, id, aml_data)
-            sync.syncronize(cr, uid, 'account.move.line', 'write', id, aml_data)
+            sync.syncronize(cr, uid, 'account.move.line', 'write', id, aml_data, context)
 
 AccountMoveLine()
