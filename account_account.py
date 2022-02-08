@@ -1,5 +1,5 @@
 # coding=utf-8
-from osv import osv
+from osv import osv, fields
 from som_sync import SomSync
 
 
@@ -17,7 +17,10 @@ class AccountAccount(osv.osv):
         if not 'user_type' in values:
             user_type =  self.read(cr, uid, ids, ['user_type'])[0]['user_type'][0]
         else:
-            user_type = values['user_type'][0]
+            if isinstance(values['user_type'], list):
+                user_type = values['user_type'][0]
+            else:
+                user_type = values['user_type']
             values.pop('user_type')
         values['user_type_id'] = user_type
         return values
@@ -31,7 +34,7 @@ class AccountAccount(osv.osv):
             sync.syncronize(cr, uid, 'account.account', 'create', ids, values,
                 context=context)
         return ids
-                                                                           
+
     def write(self, cr, uid, ids, vals, context={}):
         super(AccountAccount, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
@@ -56,6 +59,10 @@ class AccountAccount(osv.osv):
             aa_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aa_data = self.mapping(cr, uid, id, aa_data)
             sync.syncronize(cr, uid, 'account.account', 'write', id, aa_data)
+
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 AccountAccount()
 
@@ -101,5 +108,8 @@ class AccountAccountType(osv.osv):
             context=context)
         return True
 
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 AccountAccountType()

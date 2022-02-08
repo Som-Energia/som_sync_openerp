@@ -1,5 +1,5 @@
 # coding=utf-8
-from osv import osv
+from osv import osv, fields
 from som_sync import SomSync
 
 
@@ -33,7 +33,7 @@ class AccountMoveLine(osv.osv):
             context['prev_txid'] = cr.txid
             sync.syncronize(cr, uid, 'account.move.line', 'create', ids, values, context)
         return ids
-                                                                           
+
     def write(self, cr, uid, ids, vals, context={}, check=True, update_check=True):
         super(AccountMoveLine, self).write(cr, uid, ids, vals, context=context,
             check=check, update_check=update_check)
@@ -60,5 +60,10 @@ class AccountMoveLine(osv.osv):
             aml_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aml_data = self.mapping(cr, uid, id, aml_data)
             sync.syncronize(cr, uid, 'account.move.line', 'write', id, aml_data, context)
+
+
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 AccountMoveLine()

@@ -1,5 +1,5 @@
 # coding=utf-8
-from osv import osv
+from osv import osv, fields
 from som_sync import SomSync
 
 
@@ -24,7 +24,7 @@ class AccountJournal(osv.osv):
             sync.syncronize(cr, uid, 'account.journal', 'create', ids, values,
                 context=context)
         return ids
-                                                                           
+
     def write(self, cr, uid, ids, vals, context={}):
         super(AccountJournal, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
@@ -49,5 +49,9 @@ class AccountJournal(osv.osv):
             am_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             am_data = self.mapping(cr, uid, id, am_data)
             sync.syncronize(cr, uid, 'account.journal', 'write', id, am_data)
+
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 AccountJournal()

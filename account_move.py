@@ -1,5 +1,5 @@
 # coding=utf-8
-from osv import osv
+from osv import osv, fields
 from som_sync import SomSync
 
 
@@ -15,10 +15,10 @@ class AccountMove(osv.osv):
             values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
         if 'journal_id' in values and values['journal_id'] and not isinstance(values['journal_id'], int):
             journal_id = values ['journal_id'][0]
-            values ['journal_id'] = journal_id
+            values['journal_id'] = journal_id
         if 'partner_id' in values and values['partner_id'] and not isinstance(values['partner_id'], int):
             partner_id = values ['partner_id'][0]
-            values ['partner_id'] = partner_id
+            values['partner_id'] = partner_id
         return values
 
     def create(self, cr, uid, vals, context={}):
@@ -28,7 +28,7 @@ class AccountMove(osv.osv):
             sync = self.pool.get('som.sync')
             sync.syncronize(cr, uid, 'account.move', 'create', ids, values, context)
         return ids
-                                                                           
+
     def write(self, cr, uid, ids, vals, context={}):
         super(AccountMove, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
@@ -54,5 +54,8 @@ class AccountMove(osv.osv):
             am_data = self.mapping(cr, uid, id, am_data)
             sync.syncronize(cr, uid, 'account.move', 'write', id, am_data)
 
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 AccountMove()

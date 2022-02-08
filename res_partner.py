@@ -1,5 +1,5 @@
 # coding=utf-8
-from osv import osv
+from osv import osv, fields
 
 
 class ResPartner(osv.osv):
@@ -23,7 +23,7 @@ class ResPartner(osv.osv):
             sync.syncronize(cr, uid, 'res.partner', 'create', ids, values,
                 context=context)
         return ids
-                                                                           
+
     def write(self, cr, uid, ids, vals, context={}):
         super(ResPartner, self).write(cr, uid, ids, vals, context=context)
         values = self.mapping(cr, uid, ids, vals)
@@ -49,5 +49,9 @@ class ResPartner(osv.osv):
             rp_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             rp_data = self.mapping(cr, uid, id, rp_data)
             sync.syncronize(cr, uid, 'res.partner', 'write', id, rp_data)
+
+    _columns = {
+        'odoo_id':  fields.integer('Odoo id'),
+    }
 
 ResPartner()
