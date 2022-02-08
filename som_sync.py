@@ -132,8 +132,8 @@ class SomSync(osv.osv_memory):
         if isinstance(openerp_ids, list):
             openerp_ids = openerp_ids[0]
 
-        if action == 'create':
-            rp_obj = self.pool.get(model)
+        rp_obj = self.pool.get(model)
+        if action == 'create':            
             odoo_id = rp_obj.read(cursor, uid, openerp_ids, ['odoo_id'])
             if not odoo_id:
                 odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
@@ -142,10 +142,8 @@ class SomSync(osv.osv_memory):
             if not odoo_id:
                 vals['openerp_id'] = openerp_ids
                 new_odoo_id = self.client.execute(model, action, vals, context)
-                rp_obj = self.pool.get(model)
                 rp_obj.write(cursor, uid, [openerp_ids], {'odoo_id': new_odoo_id})
         elif action == 'write':
-            rp_obj = self.pool.get(model)
             odoo_id = rp_obj.read(cursor, uid, openerp_ids, ['odoo_id'])['odoo_id']
             if not odoo_id:
                 odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
