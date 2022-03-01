@@ -7,7 +7,7 @@ class AccountAccount(osv.osv):
     _name = 'account.account'
     _inherit = 'account.account'
 
-    FIELDS_TO_SYNC = ['name', 'code', 'user_type']
+    FIELDS_TO_SYNC = ['name', 'code', 'user_type', 'parent_id']
 
     def mapping(self, cr, uid, ids, vals):
         values = {}
@@ -58,7 +58,7 @@ class AccountAccount(osv.osv):
         for id in ids:
             aa_data = self.read(cr, uid, id, self.FIELDS_TO_SYNC)
             aa_data = self.mapping(cr, uid, id, aa_data)
-            sync.syncronize(cr, uid, 'account.account', 'write', id, aa_data)
+            sync.syncronize(cr, uid, 'account.account', 'write', [id], aa_data)
 
     _columns = {
         'odoo_id':  fields.integer('Odoo id'),

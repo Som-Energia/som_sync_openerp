@@ -39,6 +39,7 @@ class SomSync(osv.osv_memory):
         rp_obj.write(cursor, uid, id, {'odoo_id': odoo_id})
 
     def mapping_fk(self, cursor, uid, model, vals):
+        vals.update({key:value[0] for key, value in vals.items() if isinstance(value,tuple)})
         if 'partner_id' in vals:
             try:
                 rp_obj = self.pool.get('res.partner')
@@ -144,13 +145,13 @@ class SomSync(osv.osv_memory):
                 new_odoo_id = self.client.execute(model, action, vals, context)
                 rp_obj.write(cursor, uid, [openerp_ids], {'odoo_id': new_odoo_id})
         elif action == 'write':
-            odoo_id = rp_obj.read(cursor, uid, openerp_ids, ['odoo_id'])['odoo_id']
+            odoo_id = rp_obj.read(cursor, uid, [openerp_ids], ['odoo_id'])
             if not odoo_id:
                 odoo_id = self.client.execute(model, 'search', [('openerp_id', '=', openerp_ids)], context=context)
                 if odoo_id:
                     rp_obj.write(cursor, uid, [openerp_ids], {'odoo_id': odoo_id})
             for n in odoo_id:
-                new_odoo_id = self.client.execute(model, action, n, vals, context, check, update_check)
+                new_odoo_id = self.client.execute(model, action, n['odoo_id'], vals, context, check, update_check)
             if not odoo_id:
                 Model = self.pool.get(model)
                 values = Model.read(cursor, uid, openerp_ids, Model.FIELDS_TO_SYNC)
