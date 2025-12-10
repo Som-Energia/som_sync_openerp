@@ -1,0 +1,32 @@
+#  -*- coding: utf-8 -*-
+from osv import osv, fields
+from som_sync import SomSync
+
+
+class ResCountryState(osv.osv):
+    _name = 'res.country.state'
+    _inherit = 'res.country.state'
+
+    FIELDS_TO_SYNC = ['name', 'ree_code']
+
+    def create(self, cr, uid, vals, context={}):
+        ids = super(ResCountryState, self).create(cr, uid, vals, context=context)
+        values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
+        if values:
+            sync = self.pool.get('som.sync')
+            context['prev_txid'] = cr.txid
+
+            url = 'ES/V'
+            if not sync.exist(cr, uid, 'res.country.state', url, context=context):
+                country_letter = 'ES'
+                state_letter = 'V'
+                values = {
+                    "name": "Valencia",
+                    "code": "V",
+                    "country_id": 68,
+                    "pnt_erp_id": 10001
+                }
+                sync.syncronize(cr, uid, 'res.country.state', 'create', ids, values,
+                
+                context=context)
+        return ids
