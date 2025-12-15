@@ -1,6 +1,5 @@
 #  -*- coding: utf-8 -*-
-from osv import osv, fields
-from som_sync import SomSync
+from osv import osv
 
 
 class ResCountryState(osv.osv):
@@ -30,3 +29,5 @@ class ResCountryState(osv.osv):
                 
                 context=context)
         return ids
+
+ResCountryState()

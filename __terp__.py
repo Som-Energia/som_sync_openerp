@@ -9,6 +9,7 @@
     "demo_xml": [],
     "init_xml": [],
     "update_xml": [
+        "data/som_sync_openerp_data.xml",
         "security/ir.model.access.csv",
     ],
     "installable": True,

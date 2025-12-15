@@ -1,4 +1,6 @@
-from osv import osv
+#  -*- coding: utf-8 -*-
+from osv import osv, fields
+from oorq.decorators import job
 
 MAPPING_MODELS_GET = {
     'res.country.state': 'states',
@@ -7,7 +9,7 @@ MAPPING_MODELS_POST = {
     'res.country.state': 'state',
 }
 
-class OdooSync(osv.osv_memory):
+class OdooSync(osv.osv):
     "Sync manager"
 
     _name = "odoo.sync"
@@ -35,13 +37,24 @@ class OdooSync(osv.osv_memory):
         if action == 'create':     
             #TODO: CREATE
             url = odoo_url_api + MAPPING_MODELS_POST.get(model)
-            
 
         elif action == 'write':
             #TODO: WRITE
+            print("WRITE SYNC TOODO")
         elif action == 'unlink':
             #TODO: UNLINK
+            print("UNLINK SYNC TOODO")
 
+        return True
 
+    _columns = {
+        'model': fields.many2one('ir.model', 'Model'),
+        'res_id':  fields.integer('ERP id'),
+        'odoo_id':  fields.integer('Odoo id'),
+        # Aquests camps indiquen la data de creacio i ultima modificacio al Odoo, no la data d'actualitzció de l'odoo_id a OpenERP
+        'odoo_created_at': fields.datetime('Odoo created at'),
+        'odoo_updated_at': fields.datetime('Odoo updated at'),
+        'odoo_last_update_result': fields.text('Odoo last update result'),
+    }
 
 OdooSync()
