@@ -39,6 +39,9 @@ class OdooSync(osv.osv):
 
     @job(queue='sync_odoo')
     def syncronize(self, cursor, uid, model, action, openerp_id, vals, context={}, check=True, update_check=True):
+        self.syncronize_sync(cursor, uid, model, action, openerp_id, vals, context=context, check=check, update_check=update_check)
+
+    def syncronize_sync(self, cursor, uid, model, action, openerp_id, vals, context={}, check=True, update_check=True):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
@@ -90,6 +93,9 @@ class OdooSync(osv.osv):
         elif action == 'unlink':
             #TODO: UNLINK
             print("UNLINK SYNC TOODO")
+        elif action == 'sync':
+            #TODO: SYNC
+            print("SYNC TOODO")
 
         return True
 
