@@ -12,11 +12,14 @@ class ResCountryState(osv.osv):
         ids = super(ResCountryState, self).create(cr, uid, vals, context=context)
         values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
         if values:
-            sync = self.pool.get('som.sync')
+            sync = self.pool.get('odoo.sync')
             context['prev_txid'] = cr.txid
 
             url = 'ES/V'
-            if not sync.exist(cr, uid, 'res.country.state', url, context=context):
+            odoo_id = sync.exist(cr, uid, 'res.country.state', url, context=context)
+            if odoo_id:
+                sync.update_odoo_id(cr, uid, 'res.country.state', ids, odoo_id, context=context)
+            else:
                 country_letter = 'ES'
                 state_letter = 'V'
                 values = {
