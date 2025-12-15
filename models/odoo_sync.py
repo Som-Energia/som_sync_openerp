@@ -4,11 +4,21 @@ from oorq.decorators import job
 import requests
 from datetime import datetime
 
+# Get Odoo register
 MAPPING_MODELS_GET = {
+    'res.country.state': 'state',
+    'res.country': 'country',
+}
+# Update erp_id in Odoo
+MAPPING_MODELS_ENTITIES = {
+    'res.country.state': 'state',
+}
+# Create register in Odoo
+MAPPING_MODELS_POST = {
     'res.country.state': 'states',
 }
-MAPPING_MODELS_POST = {
-    'res.country.state': 'state',
+MAPPING_FK  = {
+    'country_id': 'country',
 }
 
 class OdooSync(osv.osv):
@@ -28,18 +38,51 @@ class OdooSync(osv.osv):
         return odoo_url_api, odoo_api_key
 
     @job(queue='sync_odoo')
-    def syncronize(self, cursor, uid, model, action, openerp_ids, vals, context={}, check=True, update_check=True):
+    def syncronize(self, cursor, uid, model, action, openerp_id, vals, context={}, check=True, update_check=True):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
-        if isinstance(openerp_ids, list):
-            openerp_ids = openerp_ids[0]
+        if isinstance(openerp_id, list):
+            openerp_id = openerp_id[0]
 
         rp_obj = self.pool.get(model)
         if action == 'create':     
             #TODO: CREATE
-            url = odoo_url_api + MAPPING_MODELS_POST.get(model)
-            odoo_id = self.exist(cursor, uid, model, url)
-            # if odoo_id:
-            #     self.update_odoo_id(cursor, uid, )
+            endpoint_sufix = rp_obj.get_odoo_url(cursor, uid, openerp_id, context=context)
+            odoo_id, erp_id = self.exist(cursor, uid, model, endpoint_sufix)
+            if odoo_id:
+                self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
+                if not erp_id:
+                    self.update_erp_id(cursor, uid, model, odoo_id, openerp_id, context=context)
+            else:
+                if MAPPING_MODELS_POST.get(model, False):
+                    data = {}
+                    if 'country_id' in vals and 'country_id' in rp_obj.FIELDS_FK:
+                        odoo_id, erp_id = self.exist(cursor, uid, 'res.country', 'ES')
+                        if odoo_id:
+                            data['country_id'] = odoo_id
+                        #TODO: que fem si no existeix?
+
+                    url_base = odoo_url_api + MAPPING_MODELS_POST.get(model)
+                    headers = {
+                        "X-API-Key": odoo_api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    }
+                    data.update({
+                        "name": vals['name'],
+                        "code": vals['ree_code'],
+                        "pnt_erp_id": openerp_id,
+                    })
+                    response = requests.post(url_base, json=data, headers=headers)
+                    if response.status_code == 201:
+                        data = response.json()
+                        if data and 'success' in data and data['success'] == True:
+                            odoo_id = data['data']['odoo_id']
+                            if odoo_id:
+                                self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
+                    else:
+                        print("ERROR CREATING IN ODOO:", response.status_code, response.text)
+                else:
+                    print("NO CREATE SUPPORTED IN ODOO FOR MODEL:", model)
 
         elif action == 'write':
             #TODO: WRITE
@@ -50,9 +93,9 @@ class OdooSync(osv.osv):
 
         return True
 
-    def exist(self, cursor, uid, model, url, context={}):
+    def exist(self, cursor, uid, model, url_sufix, context={}):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
-        url_base = odoo_url_api + MAPPING_MODELS_POST.get(model) + "/" + url
+        url_base = odoo_url_api + MAPPING_MODELS_GET.get(model) + "/" + url_sufix
         headers = {
             "X-API-Key": odoo_api_key,
             "Accept": "application/json",
@@ -61,8 +104,8 @@ class OdooSync(osv.osv):
         if response.status_code == 200:
             data = response.json()
             if data and 'success' in data and data['success'] == True:
-                return data['data']['odoo_id']
-        return False
+                return data['data']['odoo_id'], data['data']['erp_id']
+        return False, False
 
     def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
         exist = self.search(cursor, uid,
@@ -84,6 +127,21 @@ class OdooSync(osv.osv):
         self.write(cursor, uid, exist, vals, context=context)
         return True
 
+    def update_erp_id(self, cursor, uid, model, odoo_id, erp_id, context={}):
+        odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
+        url_base = "{}entity/{}/{}/{}".format(
+            odoo_url_api, MAPPING_MODELS_ENTITIES.get(model), odoo_id, erp_id
+        )
+        headers = {
+            "X-API-Key": odoo_api_key,
+            "Accept": "application/json",
+        }
+        response = requests.patch(url_base, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if data and 'success' in data and data['success'] == True:
+                return True
+        return False
 
     _columns = {
         'model': fields.many2one('ir.model', 'Model'),

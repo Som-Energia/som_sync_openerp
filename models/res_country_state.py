@@ -7,6 +7,16 @@ class ResCountryState(osv.osv):
     _inherit = 'res.country.state'
 
     FIELDS_TO_SYNC = ['name', 'ree_code']
+    FIELDS_FK = ['country_id']
+
+    def get_odoo_url(self, cr, uid, id, context={}):
+        state = self.browse(cr, uid, id, context=context)
+        if state.ree_code and state.country_id:
+            url = '{}/{}'.format(state.country_id.code, state.ree_code)
+            return url
+        else:
+            return False
+
 
     def create(self, cr, uid, vals, context={}):
         ids = super(ResCountryState, self).create(cr, uid, vals, context=context)
@@ -15,19 +25,10 @@ class ResCountryState(osv.osv):
             sync = self.pool.get('odoo.sync')
             context['prev_txid'] = cr.txid
 
-            url = 'ES/V'
             odoo_id = sync.exist(cr, uid, 'res.country.state', url, context=context)
             if odoo_id:
                 sync.update_odoo_id(cr, uid, 'res.country.state', ids, odoo_id, context=context)
             else:
-                country_letter = 'ES'
-                state_letter = 'V'
-                values = {
-                    "name": "Valencia",
-                    "code": "V",
-                    "country_id": 68,
-                    "pnt_erp_id": 10001
-                }
                 sync.syncronize(cr, uid, 'res.country.state', 'create', ids, values,
                 
                 context=context)
