@@ -10,6 +10,7 @@
                     <field name="model"/>
                     <field name="res_id"/>
                     <field name="odoo_id"/>
+                    <field name="odoo_last_sync_at"/>
                     <field name="odoo_created_at" />
                     <field name="odoo_updated_at" />
                     <field name="odoo_last_update_result" />
@@ -25,6 +26,7 @@
                     <field name="model" select="1"/>
                     <field name="res_id" select="1"/>
                     <field name="odoo_id" select="1"/>
+                    <field name="odoo_last_sync_at"/>
                     <field name="odoo_created_at" />
                     <field name="odoo_updated_at" />
                     <field name="odoo_last_update_result" />
@@ -39,7 +41,7 @@
             <field name="view_id" ref="view_odoo_sync_tree"/>
         </record>
 
-        <menuitem id="menu_folder_odoo_sync" name="Odoo Sync" parent="base.action_menu_admin"/>
+        <menuitem id="menu_folder_odoo_sync" name="Odoo Sync" parent="base.menu_administration" sequence="99"/>
         <menuitem action="action_odoo_sync_tree" id="menu_action_odoo_sync_tree" parent="menu_folder_odoo_sync"/>
     </data>
 </openerp>

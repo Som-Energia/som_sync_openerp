@@ -10,6 +10,7 @@
     "init_xml": [],
     "update_xml": [
         "data/som_sync_openerp_data.xml",
+        "views/odoo_sync_view.xml",
         "security/ir.model.access.csv",
     ],
     "installable": True,
