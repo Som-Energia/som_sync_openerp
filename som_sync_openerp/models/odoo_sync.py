@@ -45,6 +45,7 @@ class OdooSync(osv.osv):
 
         # Read fields that are not foreign keys
         keys_to_read = [key for key in rp_obj.MAPPING_FIELDS_TO_SYNC.keys() if key not in rp_obj.MAPPING_FK.keys()]
+        # TODO: check in prod if record id is already created when async
         data = rp_obj.read(cursor, uid, id, keys_to_read)
 
         # Read and sync foreign key fields
@@ -96,11 +97,11 @@ class OdooSync(osv.osv):
 
         # Check if exists in Odoo
         odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
-
+        update_last_sync = False
         if odoo_id: # already exists in Odoo
-            # update odoo_id in OpenERP
-            self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
             if not erp_id:
+                update_last_sync = True
+
                 # update erp_id in Odoo
                 res = self.update_erp_id(
                     cursor, uid, model, odoo_id, openerp_id, context=context
@@ -116,10 +117,15 @@ class OdooSync(osv.osv):
                 cursor, uid, model, data, context=context)
             if odoo_id:
                 # update odoo_id in OpenERP
-                self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
+                update_last_sync = True
                 erp_id = openerp_id
             else:
                 print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
+
+        # update odoo_id in OpenERP
+        self.update_odoo_id(
+            cursor, uid, model, openerp_id, odoo_id, update_last_sync,context=context)
+
         return odoo_id, erp_id
 
     def create_odoo_record(self, cursor, uid, model, data, context={}):
@@ -158,7 +164,8 @@ class OdooSync(osv.osv):
                 return data['data']['odoo_id'], data['data']['erp_id']
         return False, False
 
-    def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
+    def update_odoo_id(
+            self, cursor, uid, model, openerp_id, odoo_id, update_last_sync=False, context={}):
         ids = self.search(cursor, uid,
             [('model.model', '=', model), ('res_id', '=', openerp_id)]
         )
@@ -171,11 +178,12 @@ class OdooSync(osv.osv):
             })
             return True
 
-        vals = {
-            'odoo_id': odoo_id,
-            'odoo_last_sync_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        }
-        self.write(cursor, uid, ids, vals, context=context)
+        if update_last_sync:
+            vals = {
+                'odoo_id': odoo_id,
+                'odoo_last_sync_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            self.write(cursor, uid, ids, vals, context=context)
         return True
 
     def update_erp_id(self, cursor, uid, model, odoo_id, erp_id, context={}):
