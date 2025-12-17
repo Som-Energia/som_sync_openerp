@@ -7,15 +7,12 @@ class ResCountryState(osv.osv):
     _name = 'res.country.state'
     _inherit = 'res.country.state'
 
-    FIELDS_TO_SYNC = ['name', 'ree_code']
-    # Mapping of fields to sync: key -> erp field, value -> odoo field
     MAPPING_FIELDS_TO_SYNC = {
         'name': 'name',
         'ree_code': 'code',
         'country_id': 'country_id',
         'id': 'pnt_erp_id',
     }
-    FIELDS_FK = ['country_id']
     MAPPING_FK  = {
         'country_id': 'res.country',
     }
@@ -29,12 +26,11 @@ class ResCountryState(osv.osv):
             return False
 
     def create(self, cr, uid, vals, context={}):
-        import pudb;pu.db
         ids = super(ResCountryState, self).create(cr, uid, vals, context=context)
         if FF_ENABLE_ODOO_SYNC:
             sync_obj = self.pool.get('odoo.sync')
             res = sync_obj.syncronize_sync(
-                cr, uid, 'res.country.state', 'create', ids, context=context)
+                cr, uid, self._name, 'create', ids, context=context)
         return ids
 
 ResCountryState()

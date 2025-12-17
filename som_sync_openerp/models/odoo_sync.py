@@ -72,7 +72,7 @@ class OdooSync(osv.osv):
         self.syncronize_sync(cursor, uid, model, action, openerp_id, vals, context=context, check=check, update_check=update_check)
 
     def syncronize_sync(self, cursor, uid, model, action, openerp_id, vals={}, context={}, check=True, update_check=True):
-        import pudb;pu.db
+        # import pudb;pu.db
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
@@ -124,7 +124,10 @@ class OdooSync(osv.osv):
 
         # update odoo_id in OpenERP
         self.update_odoo_id(
-            cursor, uid, model, openerp_id, odoo_id, update_last_sync,context=context)
+            cursor, uid, model,
+            openerp_id, odoo_id,
+            update_last_sync,
+            context=context)
 
         return odoo_id, erp_id
 
@@ -165,24 +168,32 @@ class OdooSync(osv.osv):
         return False, False
 
     def update_odoo_id(
-            self, cursor, uid, model, openerp_id, odoo_id, update_last_sync=False, context={}):
+            self, cursor, uid, model, openerp_id, odoo_id,
+            update_last_sync=False,
+            update_odoo_updated_sync=False,
+            context={}):
         ids = self.search(cursor, uid,
             [('model.model', '=', model), ('res_id', '=', openerp_id)]
         )
+
+        str_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if not ids:
             self.create(cursor, uid,{
                 'model': self.pool.get('ir.model').search(cursor, uid, [('model', '=', model)])[0],
                 'res_id': openerp_id,
                 'odoo_id': odoo_id,
-                'odoo_last_sync_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'odoo_last_sync_at': str_now,
+                'odoo_created_at': str_now,
             })
             return True
 
+        vals = {'odoo_id': odoo_id}
         if update_last_sync:
-            vals = {
-                'odoo_id': odoo_id,
-                'odoo_last_sync_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            }
+            vals['odoo_last_sync_at'] = str_now
+        if update_odoo_updated_sync:
+            vals['odoo_updated_at'] = str_now
+
+        if update_last_sync or update_odoo_updated_sync:
             self.write(cursor, uid, ids, vals, context=context)
         return True
 

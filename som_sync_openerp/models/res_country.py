@@ -6,7 +6,6 @@ class ResCountry(osv.osv):
     _name = 'res.country'
     _inherit = 'res.country'
 
-    FIELDS_TO_SYNC = ['name', 'code']
     MAPPING_FIELDS_TO_SYNC = {
         'name': 'name',
         'code': 'code',
@@ -24,10 +23,10 @@ class ResCountry(osv.osv):
 
     def create(self, cr, uid, vals, context={}):
         ids = super(ResCountry, self).create(cr, uid, vals, context=context)
-        values = {key: vals[key] for key in vals if key in self.FIELDS_TO_SYNC}
-        if values:
-            pass
-
+        if FF_ENABLE_ODOO_SYNC:
+            sync_obj = self.pool.get('odoo.sync')
+            res = sync_obj.syncronize_sync(
+                cr, uid, self._name, 'create', ids, context=context)
         return ids
 
 ResCountry()
