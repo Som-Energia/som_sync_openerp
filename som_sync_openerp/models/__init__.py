@@ -4,3 +4,5 @@ from . import odoo_sync
 from . import res_country
 from . import res_country_state
 from . import res_municipi
+from . import res_partner_bank
+from . import res_partner

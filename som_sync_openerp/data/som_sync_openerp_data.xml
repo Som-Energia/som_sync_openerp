@@ -3,7 +3,7 @@
     <data noupdate="1">
         <record id="odoo_url_api" model="res.config">
             <field name="name">odoo_url_api</field>
-            <field name="value">http://localhost:8069/api/v1</field>
+            <field name="value">http://localhost:8069/api/v1/</field>
             <field name="description">URL d'Odoo</field>
         </record>
         <record id="odoo_api_key" model="res.config">
@@ -13,7 +13,7 @@
         </record>
         <record id="odoo_erp_models_to_sync" model="res.config">
             <field name="name">odoo_erp_models_to_sync</field>
-            <field name="value">['res.country','res.country.state','res.partner','res.municipi']</field>
+            <field name="value">['res.country','res.country.state','res.partner','res.municipi','res.partner.bank']</field>
             <field name="description">OpenERP models to sync with Odoo</field>
         </record>
     </data>

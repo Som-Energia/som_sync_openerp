@@ -4,7 +4,12 @@
     "author" : "Som Energia SCCL",
     "website" : "https://github.com/Som-Energia/som_sync_openerp",
     "category" : "Added functionality",
-    "depends" : ['base_extended_som'],
+    "depends" : [
+        'account',
+        'l10n_ES_partner',
+        'base_extended_som',
+        'base_iban',
+    ],
     "description": """Som Sync""",
     "demo_xml": [],
     "init_xml": [],

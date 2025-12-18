@@ -11,6 +11,7 @@ MAPPING_MODELS_GET = {
     'res.country.state': 'state',
     'res.country': 'country',
     'res.municipi': 'city',
+    'res.partner.bank': 'bank',
 }
 
 # Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
@@ -18,11 +19,13 @@ MAPPING_MODELS_ENTITIES = {
     'res.country.state': 'state',
     'res.country': 'country',
     'res.municipi': 'city',
+    'res.partner.bank': 'bank',
 }
 
 # Mapping of models to post endpoint sufix: key -> erp model, value -> odoo endpoint sufix
 MAPPING_MODELS_POST = {
     'res.country.state': 'states',
+    'res.partner.bank': 'banks',
 }
 
 class OdooSync(osv.osv):
@@ -41,6 +44,13 @@ class OdooSync(osv.osv):
                                     'Odoo connection parameters not found.')
         return odoo_url_api, odoo_api_key
 
+    def _clean_context_update_dates(self, cursor, uid, context={}):
+        res = context.copy()
+        res.pop('update_last_sync', False)
+        res.pop('update_odoo_created_sync', False)
+        res.pop('update_odoo_updated_sync', False)
+        return res
+
     def get_model_vals_to_sync(self, cursor, uid, model, id, context={}):
         rp_obj = self.pool.get(model)
 
@@ -51,11 +61,13 @@ class OdooSync(osv.osv):
 
         # Read and sync foreign key fields
         keys_fk = [key for key in rp_obj.MAPPING_FIELDS_TO_SYNC.keys() if key in rp_obj.MAPPING_FK.keys()]
+        if keys_fk:
+            context_copy = self._clean_context_update_dates(cursor, uid, context)
         for fk_field in keys_fk:
             model_fk = rp_obj.MAPPING_FK[fk_field]
             id_fk = rp_obj.read(cursor, uid, id, [fk_field])[fk_field][0]
             odoo_id, erp_id = self.syncronize_sync(
-                cursor, uid, model_fk, 'sync', id_fk, context=context)
+                cursor, uid, model_fk, 'sync', id_fk, context_copy)
             if not odoo_id:
                 # TODO: handle missing foreign key
                 print("FK NOT FOUND IN ODOO:", model_fk, id_fk)
@@ -106,11 +118,9 @@ class OdooSync(osv.osv):
 
         # Check if exists in Odoo
         odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
-        update_odoo_created_sync = False
+        context['update_last_sync'] = True
         if odoo_id: # already exists in Odoo
             if not erp_id:
-                context['update_last_sync'] = True
-
                 # update erp_id in Odoo
                 res = self.update_erp_id(
                     cursor, uid, model, odoo_id, openerp_id, context=context
@@ -127,7 +137,6 @@ class OdooSync(osv.osv):
             if odoo_id:
                 # update odoo_id in OpenERP
                 context.update({
-                    'update_last_sync': True,
                     'update_odoo_created_sync': True,
                 })
                 erp_id = openerp_id
@@ -162,6 +171,12 @@ class OdooSync(osv.osv):
         return False
 
     def exists(self, cursor, uid, model, url_sufix, context={}):
+        # mocked response for res.partner till implemented endpoint in Odoo
+        if model == 'res.partner':
+            odoo_id = 1617
+            erp_id = 1
+            return odoo_id, erp_id
+
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         url_base = '{}{}/{}'.format(odoo_url_api, MAPPING_MODELS_GET.get(model), url_sufix)
         headers = {
@@ -223,10 +238,12 @@ class OdooSync(osv.osv):
         'model': fields.many2one('ir.model', 'Model'),
         'res_id':  fields.integer('ERP id'),
         'odoo_id':  fields.integer('Odoo id'),
+        # Aquest camp indica la última vegada que hem fet sync amb Odoo (s'hagin modificat o no les dades)
         'odoo_last_sync_at': fields.datetime('Odoo last sync at'),
         # Aquests camps indiquen la data de creacio i ultima modificacio al Odoo, no la data d'actualitzció de l'odoo_id a OpenERP
         'odoo_created_at': fields.datetime('Odoo created at'),
         'odoo_updated_at': fields.datetime('Odoo updated at'),
+        # Resultat de la última actualització quan no han anat bé
         'odoo_last_update_result': fields.text('Odoo last update result'),
     }
 
