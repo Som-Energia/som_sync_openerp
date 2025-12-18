@@ -3,3 +3,4 @@ from __future__ import absolute_import
 from . import odoo_sync
 from . import res_country
 from . import res_country_state
+from . import res_municipi

@@ -10,12 +10,14 @@ FF_ENABLE_ODOO_SYNC = True # TODO: as variable in res.config ??
 MAPPING_MODELS_GET = {
     'res.country.state': 'state',
     'res.country': 'country',
+    'res.municipi': 'city',
 }
 
 # Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
 MAPPING_MODELS_ENTITIES = {
     'res.country.state': 'state',
     'res.country': 'country',
+    'res.municipi': 'city',
 }
 
 # Mapping of models to post endpoint sufix: key -> erp model, value -> odoo endpoint sufix
@@ -38,7 +40,6 @@ class OdooSync(osv.osv):
             raise osv.except_osv('Configuration error',
                                     'Odoo connection parameters not found.')
         return odoo_url_api, odoo_api_key
-
 
     def get_model_vals_to_sync(self, cursor, uid, model, id, context={}):
         rp_obj = self.pool.get(model)
