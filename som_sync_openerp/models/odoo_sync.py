@@ -98,6 +98,7 @@ class OdooSync(osv.osv):
         # Check if exists in Odoo
         odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
         update_last_sync = False
+        update_odoo_created_sync = False
         if odoo_id: # already exists in Odoo
             if not erp_id:
                 update_last_sync = True
@@ -118,6 +119,7 @@ class OdooSync(osv.osv):
             if odoo_id:
                 # update odoo_id in OpenERP
                 update_last_sync = True
+                update_odoo_created_sync = True
                 erp_id = openerp_id
             else:
                 print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
@@ -127,6 +129,7 @@ class OdooSync(osv.osv):
             cursor, uid, model,
             openerp_id, odoo_id,
             update_last_sync,
+            update_odoo_created_sync,
             context=context)
 
         return odoo_id, erp_id
@@ -171,6 +174,7 @@ class OdooSync(osv.osv):
             self, cursor, uid, model, openerp_id, odoo_id,
             update_last_sync=False,
             update_odoo_updated_sync=False,
+            update_odoo_created_sync=False,
             context={}):
         ids = self.search(cursor, uid,
             [('model.model', '=', model), ('res_id', '=', openerp_id)]
@@ -178,13 +182,15 @@ class OdooSync(osv.osv):
 
         str_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if not ids:
-            self.create(cursor, uid,{
+            vals = {
                 'model': self.pool.get('ir.model').search(cursor, uid, [('model', '=', model)])[0],
                 'res_id': openerp_id,
                 'odoo_id': odoo_id,
                 'odoo_last_sync_at': str_now,
-                'odoo_created_at': str_now,
-            })
+            }
+            if update_odoo_created_sync:
+                vals['odoo_created_at'] = str_now
+            self.create(cursor, uid, vals)
             return True
 
         vals = {'odoo_id': odoo_id}
