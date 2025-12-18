@@ -4,7 +4,7 @@ from oorq.decorators import job
 import requests
 from datetime import datetime
 
-FF_ENABLE_ODOO_SYNC = True # TODO: as variable in res.config
+FF_ENABLE_ODOO_SYNC = True # TODO: as variable in res.config ??
 
 # Mapping of models: key -> erp model, value -> odoo endpoint sufix
 MAPPING_MODELS_GET = {
@@ -67,12 +67,20 @@ class OdooSync(osv.osv):
                 result_data[odoo_key] = data[erp_key]
         return result_data
 
+    def sync_model_enabled(self, cursor, uid, model):
+        config_obj = self.pool.get('res.config')
+        list_models_to_sync = eval(config_obj.get(cursor, uid, 'odoo_erp_models_to_sync', '[]'))
+        if model in list_models_to_sync:
+            return True
+        return False
+
     @job(queue='sync_odoo')
     def syncronize(self, cursor, uid, model, action, openerp_id, vals, context={}, check=True, update_check=True):
         self.syncronize_sync(cursor, uid, model, action, openerp_id, vals, context=context, check=check, update_check=update_check)
 
     def syncronize_sync(self, cursor, uid, model, action, openerp_id, vals={}, context={}, check=True, update_check=True):
-        # import pudb;pu.db
+        if not self.sync_model_enabled(cursor, uid, model):
+            return False, False
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
@@ -97,11 +105,10 @@ class OdooSync(osv.osv):
 
         # Check if exists in Odoo
         odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
-        update_last_sync = False
         update_odoo_created_sync = False
         if odoo_id: # already exists in Odoo
             if not erp_id:
-                update_last_sync = True
+                context['update_last_sync'] = True
 
                 # update erp_id in Odoo
                 res = self.update_erp_id(
@@ -118,19 +125,16 @@ class OdooSync(osv.osv):
                 cursor, uid, model, data, context=context)
             if odoo_id:
                 # update odoo_id in OpenERP
-                update_last_sync = True
-                update_odoo_created_sync = True
+                context.update({
+                    'update_last_sync': True,
+                    'update_odoo_created_sync': True,
+                })
                 erp_id = openerp_id
             else:
                 print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
 
         # update odoo_id in OpenERP
-        self.update_odoo_id(
-            cursor, uid, model,
-            openerp_id, odoo_id,
-            update_last_sync,
-            update_odoo_created_sync,
-            context=context)
+        self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
 
         return odoo_id, erp_id
 
@@ -170,12 +174,7 @@ class OdooSync(osv.osv):
                 return data['data']['odoo_id'], data['data']['erp_id']
         return False, False
 
-    def update_odoo_id(
-            self, cursor, uid, model, openerp_id, odoo_id,
-            update_last_sync=False,
-            update_odoo_updated_sync=False,
-            update_odoo_created_sync=False,
-            context={}):
+    def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
         ids = self.search(cursor, uid,
             [('model.model', '=', model), ('res_id', '=', openerp_id)]
         )
@@ -188,18 +187,18 @@ class OdooSync(osv.osv):
                 'odoo_id': odoo_id,
                 'odoo_last_sync_at': str_now,
             }
-            if update_odoo_created_sync:
+            if context.get('update_odoo_created_sync', False):
                 vals['odoo_created_at'] = str_now
             self.create(cursor, uid, vals)
             return True
 
         vals = {'odoo_id': odoo_id}
-        if update_last_sync:
+        if context.get('update_last_sync', False):
             vals['odoo_last_sync_at'] = str_now
-        if update_odoo_updated_sync:
+        if context.get('update_odoo_updated_sync', False):
             vals['odoo_updated_at'] = str_now
 
-        if update_last_sync or update_odoo_updated_sync:
+        if context.get('update_last_sync') or context.get('update_odoo_updated_sync'):
             self.write(cursor, uid, ids, vals, context=context)
         return True
 

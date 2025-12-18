@@ -23,10 +23,11 @@ class ResCountry(osv.osv):
 
     def create(self, cr, uid, vals, context={}):
         ids = super(ResCountry, self).create(cr, uid, vals, context=context)
-        if FF_ENABLE_ODOO_SYNC:
-            sync_obj = self.pool.get('odoo.sync')
-            res = sync_obj.syncronize_sync(
-                cr, uid, self._name, 'create', ids, context=context)
+
+        sync_obj = self.pool.get('odoo.sync')
+        res = sync_obj.syncronize_sync(
+            cr, uid, self._name, 'create', ids, context=context)
+
         return ids
 
 ResCountry()

@@ -11,5 +11,10 @@
             <field name="value">###</field>
             <field name="description">API key d'Odoo</field>
         </record>
+        <record id="odoo_erp_models_to_sync" model="res.config">
+            <field name="name">odoo_erp_models_to_sync</field>
+            <field name="value">['res.country','res.country.state','res.partner']</field>
+            <field name="description">OpenERP models to sync with Odoo</field>
+        </record>
     </data>
 </openerp>
