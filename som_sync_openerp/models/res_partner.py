@@ -6,21 +6,31 @@ class ResPartner(osv.osv):
     _name = 'res.partner'
     _inherit = 'res.partner'
 
-    FIELDS_TO_SYNC = ['name', 'vat']
     MAPPING_FIELDS_TO_SYNC = {
-        'name': 'name'
+        'name': 'name',
     }
+    # TODO: Add foreign keys when API doc is available
     MAPPING_FK  = {
-        'partner_id': 'res.partner',
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
         partner = self.browse(cr, uid, id, context=context)
         if partner.vat:
-            # TODO: check with API doc
+            # TODO: check with API doc when available
             res = '{}'.format(partner.vat)
             return res
         else:
             return False
+
+    def create(self, cr, uid, vals, context={}):
+        ids = super(ResPartner, self).create(cr, uid, vals, context=context)
+
+        # TODO: Uncomment when ready to sync partners
+        # sync_obj = self.pool.get('odoo.sync')
+        # res = sync_obj.syncronize_sync(
+        #     cr, uid, self._name, 'create', ids, context=context)
+
+        return ids
+
 
 ResPartner()
