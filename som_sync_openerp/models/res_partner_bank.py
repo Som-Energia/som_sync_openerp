@@ -11,7 +11,7 @@ class ResPartnerBank(osv.osv):
         'iban': 'acc_number',
         'id': 'pnt_erp_id',
     }
-    MAPPING_FK  = {
+    MAPPING_FK = {
         'partner_id': 'res.partner',
     }
 
@@ -19,7 +19,7 @@ class ResPartnerBank(osv.osv):
         sync_obj = self.pool.get('odoo.sync')
         bank = self.browse(cr, uid, id, context=context)
         sync_obj_id = sync_obj.search(
-            cr, uid, [('model','=','res.partner'),('res_id','=',bank.partner_id.id)])
+            cr, uid, [('model', '=', 'res.partner'), ('res_id', '=', bank.partner_id.id)])
         odoo_partner_id = sync_obj.read(cr, uid, sync_obj_id[0], ['odoo_id'])['odoo_id']
         if bank.partner_id:
             res = '{}?acc_number={}'.format(odoo_partner_id, bank.iban)
@@ -30,10 +30,12 @@ class ResPartnerBank(osv.osv):
     def create(self, cr, uid, vals, context={}):
         ids = super(ResPartnerBank, self).create(cr, uid, vals, context=context)
 
+        context['from_create'] = True
         sync_obj = self.pool.get('odoo.sync')
-        res = sync_obj.syncronize_sync(
+        sync_obj.syncronize(
             cr, uid, self._name, 'create', ids, context=context)
 
         return ids
+
 
 ResPartnerBank()

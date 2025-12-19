@@ -12,7 +12,7 @@ class ResCountryState(osv.osv):
         'country_id': 'country_id',
         'id': 'pnt_erp_id',
     }
-    MAPPING_FK  = {
+    MAPPING_FK = {
         'country_id': 'res.country',
     }
 
@@ -28,9 +28,10 @@ class ResCountryState(osv.osv):
         ids = super(ResCountryState, self).create(cr, uid, vals, context=context)
 
         sync_obj = self.pool.get('odoo.sync')
-        res = sync_obj.syncronize_sync(
+        sync_obj.syncronize(
             cr, uid, self._name, 'create', ids, context=context)
 
         return ids
+
 
 ResCountryState()
