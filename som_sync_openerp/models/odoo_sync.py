@@ -6,6 +6,7 @@ from oorq.decorators import job
 import requests
 from datetime import datetime
 from .odoo_exceptions import CreationNotSupportedException
+import logging
 
 FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
 
@@ -104,13 +105,13 @@ class OdooSync(osv.osv):
     def syncronize_sync(self, cursor, uid,
                         model, action, openerp_id, context={},
                         check=True, update_check=True):
-
         if not self.sync_model_enabled(cursor, uid, model):
             return False, False
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
-
+        logger = logging.getLogger('openerp.odoo.sync')
+        logger.info("Odoo syncronize {} with id {}".format(model, openerp_id))
         data = {}
         rp_obj = self.pool.get(model)
         try:
@@ -135,9 +136,11 @@ class OdooSync(osv.osv):
             elif action == 'write':
                 # TODO: WRITE
                 print("WRITE SYNC TOODO")
+                context['sync_state'] = 'error'
             elif action == 'unlink':
                 # TODO: UNLINK
                 print("UNLINK SYNC TOODO")
+                context['sync_state'] = 'error'
 
             # Get endpoint suffix for existence check
             endpoint_exists_suffix = rp_obj.get_endpoint_suffix(
@@ -154,9 +157,14 @@ class OdooSync(osv.osv):
                     )
                     if res:
                         erp_id = openerp_id
+                        context['sync_state'] = 'synced'
                     else:
                         # TODO: when res is False?
                         print("ERROR UPDATING ERP_ID IN ODOO")
+                        context['sync_state'] = 'error'
+                else:
+                    # TODO: Check if fields changed to update in Odoo?
+                    context['sync_state'] = 'synced'
 
             else:  # not exists in Odoo, create it
                 odoo_id, msg = self.create_odoo_record(
@@ -167,14 +175,17 @@ class OdooSync(osv.osv):
                         'update_odoo_created_sync': True,
                     })
                     erp_id = openerp_id
+                    context['sync_state'] = 'synced'
                 else:
                     print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
                     context.update({
                         'odoo_last_update_result': msg,
                     })
+                    context['sync_state'] = 'error'
 
         except CreationNotSupportedException as e:
             context['odoo_last_update_result'] = str(e)
+            context['sync_state'] = 'error'
         finally:
             # update odoo_id in OpenERP
             self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
@@ -228,7 +239,6 @@ class OdooSync(osv.osv):
         ids = self.search(cursor, uid,
                           [('model.model', '=', model), ('res_id', '=', openerp_id)]
                           )
-
         str_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if not ids:
             vals = {
@@ -239,22 +249,30 @@ class OdooSync(osv.osv):
             }
             if context.get('update_odoo_created_sync', False):
                 vals['odoo_created_at'] = str_now
+                vals['sync_state'] = 'synced'
             if context.get('odoo_last_update_result', False):
                 vals['odoo_last_update_result'] = context.get('odoo_last_update_result')
+                vals['sync_state'] = 'error'
             self.create(cursor, uid, vals)
             return True
 
         vals = {'odoo_id': odoo_id}
         if context.get('update_last_sync', False):
             vals['odoo_last_sync_at'] = str_now
+            vals['sync_state'] = 'synced'
         if context.get('update_odoo_updated_sync', False):
             vals['odoo_updated_at'] = str_now
+            vals['sync_state'] = 'synced'
         if context.get('odoo_last_update_result', False):
             vals['odoo_last_update_result'] = context.get('odoo_last_update_result')
+            vals['sync_state'] = 'error'
+        if context.get('sync_state', False):
+            vals['sync_state'] = context.get('sync_state')
 
         if (context.get('update_last_sync')
             or context.get('update_odoo_updated_sync')
-                or context.get('odoo_last_update_result', False)):
+            or context.get('odoo_last_update_result', False)
+                or context.get('sync_state', False)):
             self.write(cursor, uid, ids, vals, context=context)
         return True
 
@@ -285,11 +303,20 @@ class OdooSync(osv.osv):
         'odoo_updated_at': fields.datetime('Odoo updated at'),
         # Resultat de la última actualització quan no han anat bé
         'odoo_last_update_result': fields.text('Odoo last update result'),
+        'sync_state': fields.selection([
+            ('synced', 'Synced'),
+            ('pending', 'Pending'),
+            ('error', 'Error'),
+        ], 'Syncronization state', required=True),
     }
 
     _sql_constraints = [
         ('model_res_id_uniq', 'unique (model,res_id)', ("Model and res_id must be unique"))
     ]
+
+    _defaults = {
+        'sync_state': lambda obj, cr, uid, context: 'pending',
+    }
 
 
 OdooSync()

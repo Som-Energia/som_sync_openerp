@@ -9,7 +9,6 @@ class WizardSyncObjectOdoo(osv.osv_memory):
     def action_sync(self, cursor, uid, ids, context=None):
         if context is None:
             context = {}
-
         from_model = context.get('from_model')
         active_ids = context.get('active_ids', [])
 
@@ -17,6 +16,16 @@ class WizardSyncObjectOdoo(osv.osv_memory):
             return {'type': 'ir.actions.act_window_close'}
 
         sync_obj = self.pool.get('odoo.sync')
+        # Support execution from model odoo.sync
+        if from_model == 'odoo.sync':
+            for _id in active_ids:
+                sync_data = sync_obj.browse(cursor, uid, _id)
+                from_res_model = sync_data.model.model
+                erp_id = sync_data.res_id
+                sync_obj.syncronize_sync(
+                    cursor, uid, from_res_model, 'sync', erp_id, context=context
+                )
+            return {'type': 'ir.actions.act_window_close'}
 
         for record_id in active_ids:
             sync_obj.syncronize_sync(

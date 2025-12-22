@@ -11,7 +11,9 @@
         'base_extended_som',
         'base_iban',
     ],
-    "demo_xml": [],
+    "demo_xml": [
+        "demo/odoo_sync_demo.xml",
+    ],
     "init_xml": [],
     "update_xml": [
         "data/som_sync_openerp_data.xml",
