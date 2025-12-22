@@ -124,7 +124,6 @@ class OdooSync(osv.osv):
                         check=True, update_check=True):
         if not self.sync_model_enabled(cursor, uid, model):
             return False, False
-        odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
         logger = logging.getLogger('openerp.odoo.sync')
@@ -149,7 +148,8 @@ class OdooSync(osv.osv):
 
             # Get endpoint suffix for existence check
             endpoint_exists_suffix = rp_obj.get_endpoint_suffix(
-                cursor, uid, openerp_id, context=context)
+                cursor, uid, openerp_id, context=context
+            )
 
             # Check if exists in Odoo
             odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
@@ -168,8 +168,10 @@ class OdooSync(osv.osv):
                         print("ERROR UPDATING ERP_ID IN ODOO")
                         context['sync_state'] = 'error'
                 else:
-                    # TODO: Check if fields changed to update in Odoo?
                     context['sync_state'] = 'synced'
+                    if MAPPING_MODELS_POST.get(model, False):
+                        # TODO: Check if fields changed to update in Odoo?
+                        self.update_odoo_data(cursor, uid, model, odoo_id, erp_id)
 
             else:  # not exists in Odoo, create it
                 odoo_id, msg = self.create_odoo_record(
@@ -221,11 +223,28 @@ class OdooSync(osv.osv):
         return False, ''
 
     def exists(self, cursor, uid, model, url_sufix, context={}):
-        # mocked response for res.partner till implemented endpoint in Odoo
         if model == 'res.partner':
             odoo_id = 1617
             erp_id = 1
             return odoo_id, erp_id
+        data = self.get_odoo_data(cursor, uid, model, url_sufix, context)
+        if data:
+            return data.get('odoo_id', False), data.get('erp_id', False)
+        return False, False
+
+    def get_odoo_data(self, cursor, uid, model, url_sufix, context={}):
+        # mocked response for res.partner till implemented endpoint in Odoo
+        if model == 'res.partner':
+            data = {
+                # "success": True,
+                # "message": "Record found successfully",
+                # "data": {
+                "odoo_id": 123,
+                "erp_id": 2,
+                "name": "ASUStek"
+                # }
+            }
+            return data
 
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         url_base = '{}{}/{}'.format(odoo_url_api, MAPPING_MODELS_GET.get(model), url_sufix)
@@ -237,8 +256,9 @@ class OdooSync(osv.osv):
         if response.status_code == 200:
             data = response.json()
             if data and 'success' in data and data.get('success', False):
-                return data['data']['odoo_id'], data['data']['erp_id']
-        return False, False
+                return data.get('data')
+        print("ERROR GETTING DATA FROM ODOO:", response.status_code, response.text)
+        return False
 
     def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
         ids = self.search(cursor, uid,
@@ -295,6 +315,34 @@ class OdooSync(osv.osv):
             data = response.json()
             if data and 'success' in data and data.get('success', False):
                 return True
+        print("ERROR UPDATING ERP_ID IN ODOO:", response.status_code, response.text)
+        return False
+
+    def get_erp_data(self, cursor, uid, model, erp_id, context={}):
+        rp_obj = self.pool.get(model)
+        fields = list(rp_obj.MAPPING_FIELDS_TO_SYNC.keys())
+        data = rp_obj.read(cursor, uid, erp_id, fields)
+        return data
+
+    def update_odoo_data(self, cursor, uid, model, odoo_id, erp_id, context={}):
+        rp_obj = self.pool.get(model)
+        # get odoo data
+        url_sufix = rp_obj.get_endpoint_suffix(
+            cursor, uid, erp_id, context=context
+        )
+        odoo_data = self.get_odoo_data(cursor, uid, model, url_sufix, context={})
+        odoo_data.pop('odoo_id', None)
+        odoo_data.pop('erp_id', None)
+
+        # get erp data
+        erp_data = self.get_model_vals_to_sync(
+            cursor, uid, model, erp_id, context=context)
+
+        # compare data and if diffent update Odoo
+        if odoo_data != erp_data:
+            # TODO: update Odoo record with erp_data
+            return True
+
         return False
 
     _columns = {
