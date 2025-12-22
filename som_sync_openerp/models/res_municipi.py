@@ -10,7 +10,7 @@ class ResMunicipi(osv.osv):
         'name': 'name',
         'ine': 'pnt_code_ine',
     }
-    MAPPING_FK  = {
+    MAPPING_FK = {
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):

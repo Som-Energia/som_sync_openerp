@@ -1,5 +1,5 @@
 #  -*- coding: utf-8 -*-
-from osv import osv, fields
+from osv import osv
 
 
 class ResPartner(osv.osv):
@@ -10,7 +10,7 @@ class ResPartner(osv.osv):
         'name': 'name',
     }
     # TODO: Add foreign keys when API doc is available
-    MAPPING_FK  = {
+    MAPPING_FK = {
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):

@@ -1,6 +1,5 @@
 # coding=utf-8
 from osv import osv, fields
-from som_sync import SomSync
 
 
 class AccountJournal(osv.osv):
@@ -22,7 +21,7 @@ class AccountJournal(osv.osv):
             sync = self.pool.get('som.sync')
             context['prev_txid'] = cr.txid
             sync.syncronize(cr, uid, 'account.journal', 'create', ids, values,
-                context=context)
+                            context=context)
         return ids
 
     def write(self, cr, uid, ids, vals, context={}):
@@ -32,7 +31,7 @@ class AccountJournal(osv.osv):
             sync = self.pool.get('som.sync')
             context['prev_txid'] = cr.txid
             sync.syncronize(cr, uid, 'account.journal', 'write', ids, values,
-                    context=context)
+                            context=context)
         return True
 
     def unlink(self, cr, uid, ids, context={}):
@@ -40,7 +39,7 @@ class AccountJournal(osv.osv):
         sync = self.pool.get('som.sync')
         context['prev_txid'] = cr.txid
         sync.syncronize(cr, uid, 'account.journal', 'unlink', ids, {},
-                context=context)
+                        context=context)
         return True
 
     def force_sync(self, cr, uid, ids, context={}):
@@ -51,7 +50,8 @@ class AccountJournal(osv.osv):
             sync.syncronize(cr, uid, 'account.journal', 'write', id, am_data)
 
     _columns = {
-        'odoo_id':  fields.integer('Odoo id'),
+        'odoo_id': fields.integer('Odoo id'),
     }
+
 
 AccountJournal()
