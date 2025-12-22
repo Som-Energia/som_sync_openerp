@@ -5,7 +5,7 @@ from osv import osv, fields
 from oorq.decorators import job
 import requests
 from datetime import datetime
-from .odoo_exceptions import CreationNotSupportedException
+from .odoo_exceptions import CreationNotSupportedException, ERPObjectNotExistsException
 import logging
 
 FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
@@ -94,6 +94,23 @@ class OdooSync(osv.osv):
             return True
         return False
 
+    def check_erp_record_exist(self, cursor, uid, model, openerp_id):
+        rp_obj = self.pool.get(model)
+        max_attemps = 5
+        attemp_n = 0
+        while attemp_n < max_attemps:
+            exists_erp_record = rp_obj.read(cursor, uid, openerp_id, ['name'])
+            if not exists_erp_record:
+                print("ERP RECORD NOT FOUND:", model, openerp_id)
+                attemp_n += 1
+                sleep(5)
+            else:
+                break
+        if attemp_n == max_attemps:
+            print("MAX ATTEMPS REACHED. SKIPPING SYNC FOR RECORD:", model, openerp_id)
+            raise ERPObjectNotExistsException("{},{}".format(model, openerp_id))
+        return True
+
     @job(queue='sync_odoo', timeout=3600)
     def syncronize(self, cursor, uid,
                    model, action, openerp_id, context={},
@@ -115,19 +132,7 @@ class OdooSync(osv.osv):
         data = {}
         rp_obj = self.pool.get(model)
         try:
-            max_attemps = 5
-            attemp_n = 0
-            while attemp_n < max_attemps:
-                exists_erp_record = rp_obj.read(cursor, uid, openerp_id, ['name'])
-                if not exists_erp_record:
-                    print("ERP RECORD NOT FOUND:", model, openerp_id)
-                    attemp_n += 1
-                    sleep(5)
-                else:
-                    break
-            if attemp_n == max_attemps:
-                print("MAX ATTEMPS REACHED. SKIPPING SYNC FOR RECORD:", model, openerp_id)
-                return False, False
+            self.check_erp_record_exist(cursor, uid, model, openerp_id)
 
             if action in ['create', 'sync']:
                 data = self.get_model_vals_to_sync(
