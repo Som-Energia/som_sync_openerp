@@ -13,7 +13,7 @@ class TestWizardSyncObjectOdoo(testing.OOTestCaseWithCursor):
         sync_obj.syncronize_sync = MagicMock()
 
         context = {
-            'active_model': 'res.partner',
+            'from_model': 'res.partner',
             'active_ids': [1, 2, 3]
         }
         wiz_id = wizard_obj.create(self.cursor, self.uid, {}, context=context)
