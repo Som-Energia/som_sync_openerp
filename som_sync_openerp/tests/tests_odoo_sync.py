@@ -30,24 +30,24 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         with self.assertRaises(ERPObjectNotExistsException):
             self.os_obj.check_erp_record_exist(self.cursor, self.uid, 'res.partner', 123456)
 
-    def test_update_odoo_data_update__partnerNoUpdate(self):
+    def test_check_update_odoo_data__partnerNoUpdate(self):
         partner_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, 'base', 'res_partner_asus'
         )[1]
         odoo_id = 1
 
-        res = self.os_obj.update_odoo_data(
+        res = self.os_obj.check_update_odoo_data(
             self.cursor, self.uid, 'res.partner', odoo_id, partner_id)
 
-        self.assertFalse(res)
+        self.assertEqual(res, (False, False, False))
 
-    def test_update_odoo_data_update__partnerUpdate(self):
+    def test_check_update_odoo_data__partnerUpdate(self):
         partner_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, 'base', 'res_partner_agrolait'
         )[1]
         odoo_id = 1
 
-        res = self.os_obj.update_odoo_data(
+        res = self.os_obj.check_update_odoo_data(
             self.cursor, self.uid, 'res.partner', odoo_id, partner_id)
 
-        self.assertTrue(res)
+        self.assertEqual(res, ('res.partner', 1, {'name': 'Agrolait'}))

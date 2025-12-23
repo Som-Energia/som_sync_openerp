@@ -35,6 +35,10 @@ MAPPING_MODELS_POST = {
     'res.partner.bank': 'banks',
 }
 
+# Mapping of modles to patch
+MAPPING_MODELS_PATCH = {
+}
+
 
 class OdooSync(osv.osv):
     "Sync manager"
@@ -168,14 +172,28 @@ class OdooSync(osv.osv):
                         context['sync_state'] = 'synced'
                     else:
                         # TODO: when res is False?
-                        print("ERROR UPDATING ERP_ID IN ODOO")
-                        context['sync_state'] = 'error'
+                        msg = "ERROR UPDATING ERP_ID IN ODOO {}".format(model)
+                        context.update({
+                            'odoo_last_update_result': msg,
+                            'sync_state': 'error',
+                        })
+                        print(msg)
                 else:
                     context['sync_state'] = 'synced'
-                    if MAPPING_MODELS_POST.get(model, False):
-                        # TODO: Check if fields changed to update in Odoo?
-                        self.update_odoo_data(cursor, uid, model, odoo_id, erp_id)
-
+                    model, odoo_id, data = self.check_update_odoo_data(
+                        cursor, uid, model, odoo_id, erp_id)
+                    if data:
+                        if MAPPING_MODELS_PATCH.get(model, False):
+                            # TODO: update in Odoo
+                            self.update_odoo_record(
+                                cursor, uid, model, odoo_id, data, context=context)
+                        else:
+                            msg = "ERROR cannot update (PATCH) Odoo model {}".format(model)
+                            context.update({
+                                'odoo_last_update_result': msg,
+                                'sync_state': 'error',
+                            })
+                            print(msg)
             else:  # not exists in Odoo, create it
                 odoo_id, msg = self.create_odoo_record(
                     cursor, uid, model, data, context=context)
@@ -184,15 +202,15 @@ class OdooSync(osv.osv):
                     context.update({
                         'update_odoo_created_sync': True,
                         'odoo_last_update_result': msg,
+                        'sync_state': 'synced',
                     })
                     erp_id = openerp_id
-                    context['sync_state'] = 'synced'
                 else:
                     print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
                     context.update({
                         'odoo_last_update_result': msg,
+                        'sync_state': 'error',
                     })
-                    context['sync_state'] = 'error'
 
         except CreationNotSupportedException as e:
             context['odoo_last_update_result'] = str(e)
@@ -225,6 +243,10 @@ class OdooSync(osv.osv):
         else:
             raise CreationNotSupportedException(model)
         return False, ''
+
+    def update_odoo_record(self, cursor, uid, model, odoo_id, data, context={}):
+        # TODO: needs an endpoint with PATCH operation to implement this
+        raise NotImplementedError()
 
     def exists(self, cursor, uid, model, url_sufix, context={}):
         if model == 'res.partner':
@@ -331,7 +353,7 @@ class OdooSync(osv.osv):
         data = rp_obj.read(cursor, uid, erp_id, fields)
         return data
 
-    def update_odoo_data(self, cursor, uid, model, odoo_id, erp_id, context={}):
+    def check_update_odoo_data(self, cursor, uid, model, odoo_id, erp_id, context={}):
         rp_obj = self.pool.get(model)
         # get odoo data
         url_sufix = rp_obj.get_endpoint_suffix(
@@ -347,10 +369,9 @@ class OdooSync(osv.osv):
 
         # compare data and if diffent update Odoo
         if odoo_data != erp_data:
-            # TODO: update Odoo record with erp_data
-            return True
+            return (model, odoo_id, erp_data)
 
-        return False
+        return (False, False, False)
 
     _columns = {
         'model': fields.many2one('ir.model', 'Model'),
