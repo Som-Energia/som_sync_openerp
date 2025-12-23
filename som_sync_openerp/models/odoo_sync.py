@@ -12,6 +12,7 @@ FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
 
 # Mapping of models: key -> erp model, value -> odoo endpoint sufix
 MAPPING_MODELS_GET = {
+    'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
     'res.municipi': 'city',
@@ -20,6 +21,7 @@ MAPPING_MODELS_GET = {
 
 # Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
 MAPPING_MODELS_ENTITIES = {
+    'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
     'res.municipi': 'city',
@@ -28,6 +30,7 @@ MAPPING_MODELS_ENTITIES = {
 
 # Mapping of models to post endpoint sufix: key -> erp model, value -> odoo endpoint sufix
 MAPPING_MODELS_POST = {
+    'account.account': 'accounts',
     'res.country.state': 'states',
     'res.partner.bank': 'banks',
 }
@@ -180,6 +183,7 @@ class OdooSync(osv.osv):
                     # update odoo_id in OpenERP
                     context.update({
                         'update_odoo_created_sync': True,
+                        'odoo_last_update_result': msg,
                     })
                     erp_id = openerp_id
                     context['sync_state'] = 'synced'
@@ -284,6 +288,9 @@ class OdooSync(osv.osv):
         vals = {'odoo_id': odoo_id}
         if context.get('update_last_sync', False):
             vals['odoo_last_sync_at'] = str_now
+            vals['sync_state'] = 'synced'
+        if context.get('update_odoo_created_sync', False):
+            vals['odoo_created_at'] = str_now
             vals['sync_state'] = 'synced'
         if context.get('update_odoo_updated_sync', False):
             vals['odoo_updated_at'] = str_now
