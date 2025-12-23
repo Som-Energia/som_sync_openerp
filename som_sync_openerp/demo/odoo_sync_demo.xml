@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+        <record id="odoo_sync_demo_1" model="odoo.sync">
+            <field name="model" search="[('model','=','res.partner')]"/>
+            <field name="odoo_id">1001</field>
+            <field name="res_id">2</field>
+            <field name="odoo_last_sync_at">2023-01-01 10:00:00</field>
+            <field name="sync_state">synced</field>
+        </record>
+        <record id="odoo_sync_demo_2" model="odoo.sync">
+            <field name="model" search="[('model','=','res.country')]"/>
+            <field name="odoo_id">2002</field>
+            <field name="res_id">2</field>
+            <field name="odoo_last_sync_at">2023-01-02 11:00:00</field>
+            <field name="sync_state">pending</field>
+        </record>
+        <record id="odoo_sync_demo_3" model="odoo.sync">
+            <field name="model" search="[('model','=','res.country.state')]"/>
+            <field name="odoo_id">3003</field>
+            <field name="res_id">5</field>
+            <field name="odoo_last_sync_at">2023-01-03 12:00:00</field>
+            <field name="sync_state">error</field>
+            <field name="odoo_last_update_result">Connection refused</field>
+        </record>
+
+    </data>
+</openerp>

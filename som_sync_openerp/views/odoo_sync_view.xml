@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <record model="ir.ui.view" id="view_odoo_sync_form">
+            <field name="name">odoo.sync.form</field>
+            <field name="model">odoo.sync</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Sincronització Odoo">
+                    <field name="model"/>
+                    <field name="res_id"/>
+                    <field name="odoo_id"/>
+                    <field name="odoo_last_sync_at"/>
+                    <field name="odoo_created_at" />
+                    <field name="odoo_updated_at" />
+                    <field name="odoo_last_update_result" />
+                    <field name="sync_state" />
+                </form>
+            </field>
+        </record>
+         <record model="ir.ui.view" id="view_odoo_sync_tree">
+            <field name="name">odoo.sync.tree</field>
+            <field name="model">odoo.sync</field>
+            <field name="type">tree</field>
+            <field name="arch" type="xml">
+                <tree string="Sincronització Odoo">
+                    <field name="model" select="1"/>
+                    <field name="res_id" select="1"/>
+                    <field name="odoo_id" select="1"/>
+                    <field name="odoo_last_sync_at" select="2"/>
+                    <field name="odoo_created_at" select="2"/>
+                    <field name="odoo_updated_at" select="2"/>
+                    <field name="odoo_last_update_result" select="2"/>
+                    <field name="sync_state" select="1"/>
+                </tree>
+            </field>
+        </record>
+        <record id="action_odoo_sync_tree" model="ir.actions.act_window">
+            <field name="name">Sincronització Odoo</field>
+            <field name="res_model">odoo.sync</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_id" ref="view_odoo_sync_tree"/>
+        </record>
+
+        <menuitem id="menu_folder_odoo_sync" name="Odoo Sync" parent="base.menu_administration" sequence="99"/>
+        <menuitem action="action_odoo_sync_tree" id="menu_action_odoo_sync_tree" parent="menu_folder_odoo_sync"/>
+    </data>
+</openerp>
