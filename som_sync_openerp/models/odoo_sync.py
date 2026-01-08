@@ -134,85 +134,95 @@ class OdooSync(osv.osv):
         self.syncronize_sync(cursor, uid, model, action, openerp_id,
                              context=context, check=check, update_check=update_check)
 
-    def syncronize_sync(self, cursor, uid,
-                        model, action, openerp_id, context={},
-                        check=True, update_check=True):
+    def syncronize_sync(self, cursor, uid, model,
+                        action, openerp_id, context=None, check=True, update_check=True):
+        """
+        Synchronizes a record between ERP and Odoo.
+        """
+        if context is None:
+            context = {}
+
+        # Early return if synchronization is disabled for this specific model
         if not self.sync_model_enabled(cursor, uid, model):
             return False, False
+
+        # Ensure openerp_id is an integer if passed as a list
         if isinstance(openerp_id, list):
             openerp_id = openerp_id[0]
+
         logger = logging.getLogger('openerp.odoo.sync')
-        logger.info("Odoo syncronize {} with id {}".format(model, openerp_id))
+        logger.info("Odoo synchronize %s with id %s", model, openerp_id)
+
         data = {}
         rp_obj = self.pool.get(model)
+        odoo_id, erp_id = False, False
+
+        # Initialize sync status tracking
+        sync_vals = {
+            'sync_state': 'pending',
+            'odoo_last_update_result': ''
+        }
+
         try:
+            # Verify record existence in the local ERP database
             self.check_erp_record_exist(cursor, uid, model, openerp_id)
 
+            # Data preparation logic based on the action type
             if action in ['create', 'sync']:
-                data = self.get_model_vals_to_sync(
-                    cursor, uid, model, openerp_id, context=context)
+                data = self.get_model_vals_to_sync(cursor, uid, model, openerp_id, context=context)
+            elif action in ['write', 'unlink']:
+                # Log placeholder for future implementations (PATCH/DELETE)
+                logger.warning("Action '%s' not yet implemented for model %s", action, model)
+                sync_vals.update({
+                    'sync_state': 'error',
+                    'odoo_last_update_result': 'Action not implemented'
+                })
+                # We continue to check existence even if the specific update action isn't ready
 
-            elif action == 'write':
-                # TODO: WRITE
-                print("WRITE SYNC TOODO")
-                context['sync_state'] = 'error'
-            elif action == 'unlink':
-                # TODO: UNLINK
-                print("UNLINK SYNC TOODO")
-                context['sync_state'] = 'error'
+            # Check if the record already exists in Odoo
+            endpoint_suffix = rp_obj.get_endpoint_suffix(cursor, uid, openerp_id, context=context)
+            odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_suffix)
 
-            # Get endpoint suffix for existence check
-            endpoint_exists_suffix = rp_obj.get_endpoint_suffix(
-                cursor, uid, openerp_id, context=context
-            )
-
-            # Check if exists in Odoo
-            odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_exists_suffix)
-
-            if odoo_id:  # already exists in Odoo
+            if odoo_id:
                 if not erp_id:
-                    # update erp_id in Odoo
-                    res = self.update_erp_id(
-                        cursor, uid, model, odoo_id, openerp_id, context=context
-                    )
-                    if res:
+                    # Case: Record exists in Odoo but the link (erp_id) is missing
+                    if self.update_erp_id(cursor, uid, model, odoo_id, openerp_id, context=context):
                         erp_id = openerp_id
-                        context['sync_state'] = 'synced'
+                        sync_vals.update({'sync_state': 'synced', 'update_last_sync': True})
                     else:
-                        # TODO: when res is False?
-                        msg = "ERROR UPDATING ERP_ID IN ODOO {}".format(model)
-                        context.update({
-                            'odoo_last_update_result': msg,
+                        sync_vals.update({
                             'sync_state': 'error',
-                        })
-                        print(msg)
+                            'odoo_last_update_result': 'Failed to link ERP_ID in Odoo'}
+                        )
                 else:
+                    # Case: Already linked.
+                    sync_vals['sync_state'] = 'synced'
                     # Removed update data in Odoo until PR https://github.com/puntsistemes/som-energia_odoo/pull/36 is merged  # noqa: E501
-                    pass
-            else:  # not exists in Odoo, create it
-                odoo_id, msg = self.create_odoo_record(
-                    cursor, uid, model, data, context=context)
+            else:
+                # Case: Record does not exist in Odoo, proceed to create it
+                odoo_id, msg = self.create_odoo_record(cursor, uid, model, data, context=context)
                 if odoo_id:
-                    # update odoo_id in OpenERP
-                    context.update({
-                        'update_odoo_created_sync': True,
-                        'odoo_last_update_result': msg,
-                        'sync_state': 'synced',
-                    })
                     erp_id = openerp_id
-                else:
-                    print("ERROR CREATING RECORD IN ODOO FOR MODEL:", model)
-                    context.update({
-                        'odoo_last_update_result': msg,
-                        'sync_state': 'error',
+                    sync_vals.update({
+                        'sync_state': 'synced',
+                        'update_odoo_created_sync': True,
+                        'odoo_last_update_result': 'Created successfully'
                     })
+                else:
+                    sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': msg})
 
         except CreationNotSupportedException as e:
-            context['odoo_last_update_result'] = str(e)
-            context['sync_state'] = 'error'
+            sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': str(e)})
+        except Exception as e:
+            # Catch unexpected errors (Connection, Timeouts, etc.)
+            logger.exception("Unexpected error during synchronization of %s", model)
+            sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': str(e)})
         finally:
-            # update odoo_id in OpenERP
-            self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=context)
+            # Single point of persistence for the sync log
+            # Merge operation results into the context for the final DB update
+            final_context = context.copy()
+            final_context.update(sync_vals)
+            self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=final_context)
 
         return odoo_id, erp_id
 
@@ -246,6 +256,8 @@ class OdooSync(osv.osv):
     def exists(self, cursor, uid, model, url_sufix, context={}):
         data = self.get_odoo_data(cursor, uid, model, url_sufix, context)
         if data:
+            if isinstance(data, list):
+                data = data[0]
             return data.get('odoo_id', False), data.get('erp_id', False)
         return False, False
 
