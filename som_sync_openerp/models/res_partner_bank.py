@@ -30,7 +30,6 @@ class ResPartnerBank(osv.osv):
     def create(self, cr, uid, vals, context={}):
         ids = super(ResPartnerBank, self).create(cr, uid, vals, context=context)
 
-        context['from_create'] = True
         sync_obj = self.pool.get('odoo.sync')
         sync_obj.syncronize(
             cr, uid, self._name, 'create', ids, context=context)
