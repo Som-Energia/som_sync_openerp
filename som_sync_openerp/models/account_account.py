@@ -1,0 +1,35 @@
+#  -*- coding: utf-8 -*-
+from osv import osv
+
+
+class AccountAccount(osv.osv):
+    _name = 'account.account'
+    _inherit = 'account.account'
+
+    MAPPING_FIELDS_TO_SYNC = {
+        'name': 'name',
+        'code': 'code',
+        'id': 'pnt_erp_id',
+    }
+    MAPPING_FK = {
+    }
+
+    def get_endpoint_suffix(self, cr, uid, id, context={}):
+        account = self.browse(cr, uid, id, context=context)
+        if account.code:
+            res = '{}'.format(account.code)
+            return res
+        else:
+            return False
+
+    def create(self, cr, uid, vals, context={}):
+        ids = super(AccountAccount, self).create(cr, uid, vals, context=context)
+
+        sync_obj = self.pool.get('odoo.sync')
+        sync_obj.syncronize(
+            cr, uid, self._name, 'create', ids, context=context)
+
+        return ids
+
+
+AccountAccount()
