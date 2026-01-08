@@ -23,6 +23,8 @@
             <field name="sync_state">error</field>
             <field name="odoo_last_update_result">Connection refused</field>
         </record>
-
+        <record id="base.res_partner_agrolait" model="res.partner">
+            <field name="vat">ES72789709E</field>
+        </record>
     </data>
 </openerp>

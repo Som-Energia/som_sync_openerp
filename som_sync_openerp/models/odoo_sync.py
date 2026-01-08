@@ -187,21 +187,8 @@ class OdooSync(osv.osv):
                         })
                         print(msg)
                 else:
-                    context['sync_state'] = 'synced'
-                    model, odoo_id, data = self.check_update_odoo_data(
-                        cursor, uid, model, odoo_id, erp_id)
-                    if data:
-                        if MAPPING_MODELS_PATCH.get(model, False):
-                            # TODO: update in Odoo
-                            self.update_odoo_record(
-                                cursor, uid, model, odoo_id, data, context=context)
-                        else:
-                            msg = "ERROR cannot update (PATCH) Odoo model {}".format(model)
-                            context.update({
-                                'odoo_last_update_result': msg,
-                                'sync_state': 'error',
-                            })
-                            print(msg)
+                    # Removed update data in Odoo until PR https://github.com/puntsistemes/som-energia_odoo/pull/36 is merged  # noqa: E501
+                    pass
             else:  # not exists in Odoo, create it
                 odoo_id, msg = self.create_odoo_record(
                     cursor, uid, model, data, context=context)
@@ -257,29 +244,12 @@ class OdooSync(osv.osv):
         raise NotImplementedError()
 
     def exists(self, cursor, uid, model, url_sufix, context={}):
-        if model == 'res.partner':
-            odoo_id = 1617
-            erp_id = 1
-            return odoo_id, erp_id
         data = self.get_odoo_data(cursor, uid, model, url_sufix, context)
         if data:
             return data.get('odoo_id', False), data.get('erp_id', False)
         return False, False
 
     def get_odoo_data(self, cursor, uid, model, url_sufix, context={}):
-        # mocked response for res.partner till implemented endpoint in Odoo
-        if model == 'res.partner':
-            data = {
-                # "success": True,
-                # "message": "Record found successfully",
-                # "data": {
-                "odoo_id": 123,
-                "erp_id": 2,
-                "name": "ASUStek"
-                # }
-            }
-            return data
-
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
         url_base = '{}{}/{}'.format(odoo_url_api, MAPPING_MODELS_GET.get(model), url_sufix)
         headers = {
