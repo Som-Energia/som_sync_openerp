@@ -10,6 +10,9 @@ class ResPartner(osv.osv):
         'name': 'name',
         'lang': 'lang',
         'vat': 'vat',
+        'customer': 'is_customer',
+        #  'supplier': 'is_supplier',
+        # 'type': 'type', not mapped, is a constant
         # 'property_account_position_id': 'property_account_position_id', #'fiscal_position'
         # 'property_payment_term_id': 'property_payment_term_id', #'payment_term'
         'property_account_receivable': 'property_account_receivable_id',  # 'account_receivable
@@ -21,6 +24,10 @@ class ResPartner(osv.osv):
         # 'property_payment_term_id': 'account.payment.term', #'payment_term'
         'property_account_receivable': 'account.account',  # 'account_receivable
         'property_account_payable': 'account.account',  # 'account_payable'
+    }
+
+    MAPPING_CONSTANTS = {
+        'type': 'contact',
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):

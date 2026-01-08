@@ -14,6 +14,8 @@ class ResPartnerBank(osv.osv):
     MAPPING_FK = {
         'partner_id': 'res.partner',
     }
+    MAPPING_CONSTANTS = {
+    }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
         sync_obj = self.pool.get('odoo.sync')
