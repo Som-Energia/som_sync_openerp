@@ -8,16 +8,25 @@ class ResPartner(osv.osv):
 
     MAPPING_FIELDS_TO_SYNC = {
         'name': 'name',
+        'lang': 'lang',
+        'vat': 'vat',
+        # 'property_account_position_id': 'property_account_position_id', #'fiscal_position'
+        # 'property_payment_term_id': 'property_payment_term_id', #'payment_term'
+        'property_account_receivable': 'property_account_receivable_id',  # 'account_receivable
+        'property_account_payable': 'property_account_payable_id',  # 'account_payable'
     }
-    # TODO: Add foreign keys when API doc is available
+
     MAPPING_FK = {
+        # 'property_account_position_id': 'account.fiscal.position', #'fiscal_position'
+        # 'property_payment_term_id': 'account.payment.term', #'payment_term'
+        'property_account_receivable': 'account.account',  # 'account_receivable
+        'property_account_payable': 'account.account',  # 'account_payable'
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
         partner = self.browse(cr, uid, id, context=context)
         if partner.vat:
-            # TODO: check with API doc when available
-            res = '{}'.format(partner.vat)
+            res = 'company/{}'.format(partner.vat)
             return res
         else:
             return False
@@ -25,10 +34,9 @@ class ResPartner(osv.osv):
     def create(self, cr, uid, vals, context={}):
         ids = super(ResPartner, self).create(cr, uid, vals, context=context)
 
-        # TODO: Uncomment when ready to sync partners
-        # sync_obj = self.pool.get('odoo.sync')
-        # res = sync_obj.syncronize_sync(
-        #     cr, uid, self._name, 'create', ids, context=context)
+        sync_obj = self.pool.get('odoo.sync')
+        sync_obj.syncronize(
+            cr, uid, self._name, 'create', ids, context=context)
 
         return ids
 
