@@ -95,6 +95,11 @@ class OdooSync(osv.osv):
         for erp_key, odoo_key in rp_obj.MAPPING_FIELDS_TO_SYNC.items():
             if erp_key in data:
                 result_data[odoo_key] = data[erp_key]
+
+        # Add constant fields
+        for erp_key, constant_value in rp_obj.MAPPING_CONSTANTS.items():
+            result_data[erp_key] = constant_value
+
         return result_data
 
     def sync_model_enabled(self, cursor, uid, model):

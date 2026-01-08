@@ -15,6 +15,8 @@ class ResCountryState(osv.osv):
     MAPPING_FK = {
         'country_id': 'res.country',
     }
+    MAPPING_CONSTANTS = {
+    }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
         state = self.browse(cr, uid, id, context=context)
