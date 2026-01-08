@@ -17,6 +17,7 @@ class ResPartner(osv.osv):
         # 'property_payment_term_id': 'property_payment_term_id', #'payment_term'
         'property_account_receivable': 'property_account_receivable_id',  # 'account_receivable
         'property_account_payable': 'property_account_payable_id',  # 'account_payable'
+        # 'id': 'pnt_erp_id',
     }
 
     MAPPING_FK = {
