@@ -59,11 +59,13 @@ class OdooSync(osv.osv):
                                  'Odoo connection parameters not found.')
         return odoo_url_api, odoo_api_key
 
-    def _clean_context_update_dates(self, cursor, uid, context={}):
+    def _clean_context_update_data(self, cursor, uid, context={}):
         res = context.copy()
         res.pop('update_last_sync', False)
         res.pop('update_odoo_created_sync', False)
         res.pop('update_odoo_updated_sync', False)
+        res.pop('odoo_last_update_result', False)
+        res.pop('sync_state', False)
         return res
 
     def get_model_vals_to_sync(self, cursor, uid, model, id, context={}):
@@ -79,7 +81,7 @@ class OdooSync(osv.osv):
         keys_fk = [key for key in rp_obj.MAPPING_FIELDS_TO_SYNC.keys()
                    if key in rp_obj.MAPPING_FK.keys()]
         if keys_fk:
-            context_copy = self._clean_context_update_dates(cursor, uid, context)
+            context_copy = self._clean_context_update_data(cursor, uid, context)
         for fk_field in keys_fk:
             model_fk = rp_obj.MAPPING_FK[fk_field]
             id_fk = rp_obj.read(cursor, uid, id, [fk_field])[fk_field][0]
@@ -162,7 +164,6 @@ class OdooSync(osv.osv):
             'sync_state': 'pending',
             'odoo_last_update_result': ''
         }
-
         try:
             # Verify record existence in the local ERP database
             self.check_erp_record_exist(cursor, uid, model, openerp_id)
@@ -175,7 +176,7 @@ class OdooSync(osv.osv):
                 logger.warning("Action '%s' not yet implemented for model %s", action, model)
                 sync_vals.update({
                     'sync_state': 'error',
-                    'odoo_last_update_result': 'Action not implemented'
+                    'odoo_erp_idlast_update_result': 'Action not implemented'
                 })
                 # We continue to check existence even if the specific update action isn't ready
 
@@ -188,15 +189,22 @@ class OdooSync(osv.osv):
                     # Case: Record exists in Odoo but the link (erp_id) is missing
                     if self.update_erp_id(cursor, uid, model, odoo_id, openerp_id, context=context):
                         erp_id = openerp_id
-                        sync_vals.update({'sync_state': 'synced', 'update_last_sync': True})
+                        sync_vals.update({
+                            'sync_state': 'synced',
+                            'update_last_sync': True,
+                        })
                     else:
                         sync_vals.update({
                             'sync_state': 'error',
-                            'odoo_last_update_result': 'Failed to link ERP_ID in Odoo'}
-                        )
+                            'odoo_last_update_result': 'Failed to link ERP_ID in Odoo',
+                            'update_last_sync': True,
+                        })
                 else:
                     # Case: Already linked.
                     sync_vals['sync_state'] = 'synced'
+                    sync_vals.update({
+                        'odoo_last_update_result': 'OK',
+                    })
                     # Removed update data in Odoo until PR https://github.com/puntsistemes/som-energia_odoo/pull/36 is merged  # noqa: E501
             else:
                 # Case: Record does not exist in Odoo, proceed to create it
@@ -206,17 +214,29 @@ class OdooSync(osv.osv):
                     sync_vals.update({
                         'sync_state': 'synced',
                         'update_odoo_created_sync': True,
-                        'odoo_last_update_result': 'Created successfully'
+                        'odoo_last_update_result': 'OK',
                     })
                 else:
-                    sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': msg})
+                    sync_vals.update({
+                        'sync_state': 'error',
+                        'odoo_last_update_result': msg,
+                        'update_last_sync': True,
+                    })
 
         except CreationNotSupportedException as e:
-            sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': str(e)})
+            sync_vals.update({
+                'sync_state': 'error',
+                'odoo_last_update_result': str(e),
+                'update_last_sync': True,
+            })
         except Exception as e:
             # Catch unexpected errors (Connection, Timeouts, etc.)
             logger.exception("Unexpected error during synchronization of %s", model)
-            sync_vals.update({'sync_state': 'error', 'odoo_last_update_result': str(e)})
+            sync_vals.update({
+                'sync_state': 'error',
+                'odoo_last_update_result': str(e),
+                'update_last_sync': True,
+            })
         finally:
             # Single point of persistence for the sync log
             # Merge operation results into the context for the final DB update
@@ -296,8 +316,9 @@ class OdooSync(osv.osv):
                 vals['sync_state'] = 'error'
             self.create(cursor, uid, vals)
             return True
-
+        sync_data = self.browse(cursor, uid, ids[0], context=context)
         vals = {'odoo_id': odoo_id}
+        update_last_sync = context.get('update_last_sync', False)
         if context.get('update_last_sync', False):
             vals['odoo_last_sync_at'] = str_now
             vals['sync_state'] = 'synced'
@@ -309,14 +330,13 @@ class OdooSync(osv.osv):
             vals['sync_state'] = 'synced'
         if context.get('odoo_last_update_result', False):
             vals['odoo_last_update_result'] = context.get('odoo_last_update_result')
-            vals['sync_state'] = 'error'
         if context.get('sync_state', False):
             vals['sync_state'] = context.get('sync_state')
+        if sync_data.sync_state == 'error' and vals.get('sync_state', '') == 'synced':
+            vals['odoo_last_sync_at'] = str_now
+            update_last_sync = True
 
-        if (context.get('update_last_sync')
-            or context.get('update_odoo_updated_sync')
-            or context.get('odoo_last_update_result', False)
-                or context.get('sync_state', False)):
+        if update_last_sync:
             self.write(cursor, uid, ids, vals, context=context)
         return True
 
@@ -372,7 +392,7 @@ class OdooSync(osv.osv):
         # Aquests camps indiquen la data de creacio i ultima modificacio al Odoo, no la data d'actualitzció de l'odoo_id a OpenERP  # noqa: E501
         'odoo_created_at': fields.datetime('Odoo created at'),
         'odoo_updated_at': fields.datetime('Odoo updated at'),
-        # Resultat de la última actualització quan no han anat bé
+        # Resultat de la última actualització a Odoo
         'odoo_last_update_result': fields.text('Odoo last update result'),
         'sync_state': fields.selection([
             ('synced', 'Synced'),
