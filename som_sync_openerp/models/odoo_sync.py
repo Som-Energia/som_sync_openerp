@@ -82,6 +82,7 @@ class OdooSync(osv.osv):
                    if key in rp_obj.MAPPING_FK.keys()]
         if keys_fk:
             context_copy = self._clean_context_update_data(cursor, uid, context)
+            context_copy['from_fk_sync'] = True
         for fk_field in keys_fk:
             model_fk = rp_obj.MAPPING_FK[fk_field]
             id_fk = rp_obj.read(cursor, uid, id, [fk_field])[fk_field][0]
@@ -160,10 +161,8 @@ class OdooSync(osv.osv):
         odoo_id, erp_id = False, False
 
         # Initialize sync status tracking
-        sync_vals = {
-            'sync_state': 'pending',
-            'odoo_last_update_result': ''
-        }
+        sync_vals = {}
+
         try:
             # Verify record existence in the local ERP database
             self.check_erp_record_exist(cursor, uid, model, openerp_id)
@@ -201,10 +200,11 @@ class OdooSync(osv.osv):
                         })
                 else:
                     # Case: Already linked.
-                    sync_vals['sync_state'] = 'synced'
-                    sync_vals.update({
-                        'odoo_last_update_result': 'OK',
-                    })
+                    if not context.get('from_fk_sync', False):
+                        sync_vals.update({
+                            'sync_state': 'synced',
+                            'update_last_sync': True,
+                        })
                     # Removed update data in Odoo until PR https://github.com/puntsistemes/som-energia_odoo/pull/36 is merged  # noqa: E501
             else:
                 # Case: Record does not exist in Odoo, proceed to create it
@@ -214,7 +214,6 @@ class OdooSync(osv.osv):
                     sync_vals.update({
                         'sync_state': 'synced',
                         'update_odoo_created_sync': True,
-                        'odoo_last_update_result': 'OK',
                     })
                 else:
                     sync_vals.update({
@@ -296,7 +295,102 @@ class OdooSync(osv.osv):
         print("ERROR GETTING DATA FROM ODOO:", response.status_code, response.text)
         return False
 
-    def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
+    def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context=None):
+        if context is None:
+            context = {}
+
+        str_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        ids = self.search(cursor, uid, [
+            ('model.model', '=', model),
+            ('res_id', '=', openerp_id),
+        ])
+
+        if not ids:
+            return self._create_sync_record(
+                cursor, uid, model, openerp_id, odoo_id, str_now, context
+            )
+        else:
+            sync_record = self.browse(cursor, uid, ids[0], context=context)
+            vals, update = self._build_update_vals(
+                sync_record, odoo_id, str_now, context
+            )
+            if update:
+                self.write(cursor, uid, ids, vals, context=context)
+
+        return True
+
+    def _create_sync_record(self, cursor, uid, model, openerp_id, odoo_id, str_now, context):
+        model_id = self.pool.get('ir.model').search(
+            cursor, uid, [('model', '=', model)], limit=1
+        )[0]
+
+        vals = {
+            'model': model_id,
+            'res_id': openerp_id,
+            'odoo_id': odoo_id,
+            'odoo_last_sync_at': str_now,
+            'sync_state': 'synced',
+        }
+
+        if context.get('update_odoo_created_sync'):
+            vals.update({
+                'odoo_created_at': str_now,
+            })
+
+        if context.get('odoo_last_update_result'):
+            vals.update({
+                'odoo_last_update_result': context['odoo_last_update_result'],
+                'sync_state': 'error',
+            })
+
+        self.create(cursor, uid, vals)
+        return True
+
+    def _build_update_vals(self, sync_record, odoo_id, str_now, context):
+        vals = {'odoo_id': odoo_id}
+        update = False
+
+        if context.get('update_last_sync'):
+            vals.update({
+                'odoo_last_sync_at': str_now,
+                'sync_state': 'synced',
+            })
+            update = True
+
+        if context.get('update_odoo_created_sync'):
+            vals.update({
+                'odoo_created_at': str_now,
+                'sync_state': 'synced',
+            })
+            update = True
+
+        if context.get('update_odoo_updated_sync'):
+            vals.update({
+                'odoo_updated_at': str_now,
+                'sync_state': 'synced',
+            })
+            update = True
+
+        if context.get('odoo_last_update_result'):
+            vals['odoo_last_update_result'] = context['odoo_last_update_result']
+            update = True
+
+        if context.get('sync_state'):
+            vals['sync_state'] = context['sync_state']
+            update = True
+
+        # Special case: error → synced
+        if sync_record.sync_state == 'error' and vals.get('sync_state') == 'synced':
+            vals.update({
+                'odoo_last_sync_at': str_now,
+                'odoo_last_update_result': '',
+            })
+            update = True
+
+        return vals, update
+
+    def update_odoo_id_old(self, cursor, uid, model, openerp_id, odoo_id, context={}):
         ids = self.search(cursor, uid, [
             ('model.model', '=', model),
             ('res_id', '=', openerp_id),
@@ -317,7 +411,8 @@ class OdooSync(osv.osv):
                 vals['sync_state'] = 'error'
             self.create(cursor, uid, vals)
             return True
-        sync_data = self.browse(cursor, uid, ids[0], context=context)
+
+        odoo_sync = self.browse(cursor, uid, ids[0], context=context)
         vals = {'odoo_id': odoo_id}
         update_last_sync = context.get('update_last_sync', False)
         if context.get('update_last_sync', False):
@@ -333,7 +428,8 @@ class OdooSync(osv.osv):
             vals['odoo_last_update_result'] = context.get('odoo_last_update_result')
         if context.get('sync_state', False):
             vals['sync_state'] = context.get('sync_state')
-        if sync_data.sync_state == 'error' and vals.get('sync_state', '') == 'synced':
+
+        if odoo_sync.sync_state == 'error' and vals.get('sync_state', '') == 'synced':
             vals['odoo_last_sync_at'] = str_now
             update_last_sync = True
 
