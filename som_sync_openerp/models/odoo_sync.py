@@ -153,7 +153,7 @@ class OdooSync(osv.osv):
             openerp_id = openerp_id[0]
 
         logger = logging.getLogger('openerp.odoo.sync')
-        logger.info("Odoo synchronize %s with id %s", model, openerp_id)
+        logger.info("Odoo syncronize {} with id {}".format(model, openerp_id))
 
         data = {}
         rp_obj = self.pool.get(model)
@@ -173,10 +173,10 @@ class OdooSync(osv.osv):
                 data = self.get_model_vals_to_sync(cursor, uid, model, openerp_id, context=context)
             elif action in ['write', 'unlink']:
                 # Log placeholder for future implementations (PATCH/DELETE)
-                logger.warning("Action '%s' not yet implemented for model %s", action, model)
+                logger.info("Action {} not implemented yet for model {}".format(action, model))
                 sync_vals.update({
                     'sync_state': 'error',
-                    'odoo_erp_idlast_update_result': 'Action not implemented'
+                    'odoo_last_update_result': 'Action not implemented'
                 })
                 # We continue to check existence even if the specific update action isn't ready
 
@@ -231,7 +231,7 @@ class OdooSync(osv.osv):
             })
         except Exception as e:
             # Catch unexpected errors (Connection, Timeouts, etc.)
-            logger.exception("Unexpected error during synchronization of %s", model)
+            logger.exception("Unexpected error during synchronization of {}".format(model))
             sync_vals.update({
                 'sync_state': 'error',
                 'odoo_last_update_result': str(e),
@@ -297,9 +297,10 @@ class OdooSync(osv.osv):
         return False
 
     def update_odoo_id(self, cursor, uid, model, openerp_id, odoo_id, context={}):
-        ids = self.search(cursor, uid,
-                          [('model.model', '=', model), ('res_id', '=', openerp_id)]
-                          )
+        ids = self.search(cursor, uid, [
+            ('model.model', '=', model),
+            ('res_id', '=', openerp_id),
+        ])
         str_now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         if not ids:
             vals = {
