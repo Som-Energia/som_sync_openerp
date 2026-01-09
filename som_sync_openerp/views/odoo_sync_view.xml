@@ -30,8 +30,8 @@
                     <field name="odoo_last_sync_at" select="2"/>
                     <field name="odoo_created_at" select="2"/>
                     <field name="odoo_updated_at" select="2"/>
-                    <field name="odoo_last_update_result" select="2"/>
                     <field name="sync_state" select="1"/>
+                    <field name="odoo_last_update_result" select="2"/>
                 </tree>
             </field>
         </record>
