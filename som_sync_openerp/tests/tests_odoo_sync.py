@@ -30,6 +30,45 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         with self.assertRaises(ERPObjectNotExistsException):
             self.os_obj.check_erp_record_exist(self.cursor, self.uid, 'res.partner', 123456)
 
+    def test___create_sync_record__ok(self):
+        partner_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, 'base', 'res_partner_thymbra'
+        )[1]
+        context = {
+            'sync_state': 'synced',
+            'update_odoo_created_sync': True,
+        }
+
+        sync_id = self.os_obj._create_sync_record(
+            self.cursor, self.uid, 'res.partner', partner_id, 5001, '2024-06-10 12:00:00', context
+        )
+
+        sync_record = self.os_obj.browse(self.cursor, self.uid, sync_id)
+        self.assertEqual(sync_record.model.model, 'res.partner')
+        self.assertEqual(sync_record.res_id, partner_id)
+        self.assertEqual(sync_record.odoo_id, 5001)
+        self.assertEqual(sync_record.sync_state, 'synced')
+
+    def test___create_sync_record__error(self):
+        partner_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, 'base', 'res_partner_thymbra'
+        )[1]
+        context = {
+            'sync_state': 'error',
+            'odoo_last_update_result': '{"message": "err", "error_code": "INTERNAL_SERVER_ERROR"}',
+            'update_last_sync': True,
+        }
+
+        sync_id = self.os_obj._create_sync_record(
+            self.cursor, self.uid, 'res.partner', partner_id, 0, '2024-06-10 12:00:00', context
+        )
+
+        sync_record = self.os_obj.browse(self.cursor, self.uid, sync_id)
+        self.assertEqual(sync_record.model.model, 'res.partner')
+        self.assertEqual(sync_record.res_id, partner_id)
+        self.assertEqual(sync_record.odoo_id, 0)
+        self.assertEqual(sync_record.sync_state, 'error')
+
     def test__build_update_vals__syncPartnerAlreadySyncred__ok(self):
         sync_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, 'som_sync_openerp', 'odoo_partner_already_syncred'

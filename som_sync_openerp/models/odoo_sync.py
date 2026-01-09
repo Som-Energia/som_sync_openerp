@@ -343,8 +343,7 @@ class OdooSync(osv.osv):
                 'sync_state': 'error',
             })
 
-        self.create(cursor, uid, vals)
-        return True
+        return self.create(cursor, uid, vals)
 
     def _build_update_vals(self, cursor, uid, ids, odoo_id, str_now, context):
         vals = {'odoo_id': odoo_id}
