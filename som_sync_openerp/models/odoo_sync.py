@@ -489,8 +489,8 @@ class OdooSync(osv.osv):
         # Aquests camps indiquen la data de creacio i ultima modificacio al Odoo, no la data d'actualitzció de l'odoo_id a OpenERP  # noqa: E501
         'odoo_created_at': fields.datetime('Odoo created at'),
         'odoo_updated_at': fields.datetime('Odoo updated at'),
-        # Resultat de la última actualització a Odoo
-        'odoo_last_update_result': fields.text('Odoo last update result'),
+        # Resultat de l'error de la última actualització
+        'odoo_last_update_result': fields.text('Odoo last update error'),
         'sync_state': fields.selection([
             ('synced', 'Synced'),
             ('pending', 'Pending'),
