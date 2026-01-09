@@ -88,6 +88,24 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             'sync_state': 'synced'
         }
         self.assertEqual(vals, expected_vals)
+        self.assertEqual(update, True)
+
+    def test__build_update_vals__syncPartnerAlreadySyncred__okFK(self):
+        sync_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, 'som_sync_openerp', 'odoo_partner_already_syncred'
+        )[1]
+        context = {
+            'from_fk_sync': True,
+        }
+
+        vals, update = self.os_obj._build_update_vals(
+            self.cursor, self.uid, sync_id, 1001, '2024-06-10 12:00:00', context
+        )
+
+        expected_vals = {
+            'odoo_id': 1001,
+        }
+        self.assertEqual(vals, expected_vals)
         self.assertEqual(update, False)
 
     def test__build_update_vals__syncPartnerAlreadySyncred__withError(self):
@@ -133,4 +151,4 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             'sync_state': 'synced'
         }
         self.assertEqual(vals, expected_vals)
-        self.assertEqual(update, False)
+        self.assertEqual(update, True)
