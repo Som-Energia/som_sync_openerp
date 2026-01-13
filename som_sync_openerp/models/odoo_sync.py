@@ -312,7 +312,7 @@ class OdooSync(osv.osv):
             )
         else:
             vals, update = self._build_update_vals(
-                ids, odoo_id, str_now, context
+                cursor, uid, ids[0], odoo_id, str_now, context
             )
             if update:
                 self.write(cursor, uid, ids, vals, context=context)
@@ -345,7 +345,7 @@ class OdooSync(osv.osv):
 
         return self.create(cursor, uid, vals)
 
-    def _build_update_vals(self, cursor, uid, ids, odoo_id, str_now, context):
+    def _build_update_vals(self, cursor, uid, id, odoo_id, str_now, context):
         vals = {'odoo_id': odoo_id}
         update = False
 
@@ -379,7 +379,7 @@ class OdooSync(osv.osv):
             update = True
 
         # Special case: error → synced
-        sync_record = self.browse(cursor, uid, ids)
+        sync_record = self.browse(cursor, uid, id)
         if sync_record.sync_state == 'error' and vals.get('sync_state') == 'synced':
             vals.update({
                 'odoo_last_sync_at': str_now,
