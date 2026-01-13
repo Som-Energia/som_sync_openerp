@@ -7,6 +7,7 @@ class ResPartner(osv.osv):
     _inherit = 'res.partner'
 
     MAPPING_FIELDS_TO_SYNC = {
+        'id': 'pnt_erp_id',
         'name': 'name',
         'lang': 'lang',
         'vat': 'vat',
@@ -29,6 +30,7 @@ class ResPartner(osv.osv):
 
     MAPPING_CONSTANTS = {
         'type': 'contact',
+        'is_company': True,
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
