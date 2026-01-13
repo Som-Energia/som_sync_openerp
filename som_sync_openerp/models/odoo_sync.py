@@ -5,7 +5,7 @@ from osv import osv, fields
 from oorq.decorators import job
 import requests
 from datetime import datetime
-from .odoo_exceptions import CreationNotSupportedException, ERPObjectNotExistsException
+from .odoo_exceptions import CreationNotSupportedException, ERPObjectNotExistsException, UpdateNotSupportedException  # noqa: E501
 import logging
 
 FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
@@ -156,9 +156,9 @@ class OdooSync(osv.osv):
         logger = logging.getLogger('openerp.odoo.sync')
         logger.info("Odoo syncronize {} with id {}".format(model, openerp_id))
 
-        data = {}
+        erp_data = {}
         rp_obj = self.pool.get(model)
-        odoo_id, erp_id = False, False
+        odoo_id, erp_id, odoo_metadata = False, False, False
 
         # Initialize sync status tracking
         sync_vals = {}
@@ -169,7 +169,8 @@ class OdooSync(osv.osv):
 
             # Data preparation logic based on the action type
             if action in ['create', 'sync']:
-                data = self.get_model_vals_to_sync(cursor, uid, model, openerp_id, context=context)
+                erp_data = self.get_model_vals_to_sync(
+                    cursor, uid, model, openerp_id, context=context)
             elif action in ['write', 'unlink']:
                 # Log placeholder for future implementations (PATCH/DELETE)
                 logger.info("Action {} not implemented yet for model {}".format(action, model))
@@ -181,7 +182,7 @@ class OdooSync(osv.osv):
 
             # Check if the record already exists in Odoo
             endpoint_suffix = rp_obj.get_endpoint_suffix(cursor, uid, openerp_id, context=context)
-            odoo_id, erp_id = self.exists(cursor, uid, model, endpoint_suffix)
+            odoo_id, erp_id, odoo_metadata = self.exists(cursor, uid, model, endpoint_suffix)
 
             if odoo_id:
                 if not erp_id:
@@ -205,10 +206,19 @@ class OdooSync(osv.osv):
                             'sync_state': 'synced',
                             'update_last_sync': True,
                         })
-                    # Removed update data in Odoo until PR https://github.com/puntsistemes/som-energia_odoo/pull/36 is merged  # noqa: E501
+                # WIP: Update logic for existing records in Odoo
+                erp_data.pop('pnt_erp_id', False)
+                odoo_metadata.pop('company_id', False)
+                odoo_metadata.pop('company_name', False)
+                # for account we need https://github.com/puntsistemes/som-energia_odoo/pull/39
+                # compare erp_data and odoo_metadata and if different update Odoo
+                if erp_data != odoo_metadata:
+                    self.update_odoo_record(cursor, uid, model, odoo_id, erp_data, context)
+
             else:
                 # Case: Record does not exist in Odoo, proceed to create it
-                odoo_id, msg = self.create_odoo_record(cursor, uid, model, data, context=context)
+                odoo_id, msg = self.create_odoo_record(
+                    cursor, uid, model, erp_data, context=context)
                 if odoo_id:
                     erp_id = openerp_id
                     sync_vals.update({
@@ -223,6 +233,12 @@ class OdooSync(osv.osv):
                     })
 
         except CreationNotSupportedException as e:
+            sync_vals.update({
+                'sync_state': 'error',
+                'odoo_last_update_result': str(e),
+                'update_last_sync': True,
+            })
+        except UpdateNotSupportedException as e:
             sync_vals.update({
                 'sync_state': 'error',
                 'odoo_last_update_result': str(e),
@@ -270,15 +286,16 @@ class OdooSync(osv.osv):
 
     def update_odoo_record(self, cursor, uid, model, odoo_id, data, context={}):
         # TODO: needs an endpoint with PATCH operation to implement this
-        raise NotImplementedError()
+        raise UpdateNotSupportedException(model)
 
     def exists(self, cursor, uid, model, url_sufix, context={}):
         data = self.get_odoo_data(cursor, uid, model, url_sufix, context)
         if data:
             if isinstance(data, list):
                 data = data[0]
-            return data.get('odoo_id', False), data.get('erp_id', False)
-        return False, False
+            metadata = data.get('metadata', [{}])[0]
+            return data.get('odoo_id', False), data.get('erp_id', False), metadata
+        return False, False, False
 
     def get_odoo_data(self, cursor, uid, model, url_sufix, context={}):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
