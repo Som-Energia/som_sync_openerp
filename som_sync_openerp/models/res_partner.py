@@ -36,7 +36,7 @@ class ResPartner(osv.osv):
     def get_endpoint_suffix(self, cr, uid, id, context={}):
         partner = self.browse(cr, uid, id, context=context)
         if partner.vat:
-            res = 'company/{}'.format(partner.vat)
+            res = 'other/{}'.format(partner.vat)
             return res
         else:
             return False
