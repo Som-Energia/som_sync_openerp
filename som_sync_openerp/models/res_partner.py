@@ -12,7 +12,7 @@ class ResPartner(osv.osv):
         'lang': 'lang',
         'vat': 'vat',
         'customer': 'is_customer',
-        #  'supplier': 'is_supplier',
+        # 'supplier': 'is_supplier',
         # 'type': 'type', not mapped, is a constant
         # 'property_account_position_id': 'property_account_position_id', #'fiscal_position'
         # 'property_payment_term_id': 'property_payment_term_id', #'payment_term'

@@ -11,7 +11,7 @@ class TestResPartnerAddress(testing.OOTestCaseWithCursor):
 
     def test_get_endpoint_suffix(self):
         partner_id = self.imd_obj.get_object_reference(
-            self.cursor, self.uid, "base", "res_partner_agrolait"
+            self.cursor, self.uid, "base", "res_partner_address_8"
         )[1]
 
         suffix = self.rp_obj.get_endpoint_suffix(self.cursor, self.uid, partner_id)
