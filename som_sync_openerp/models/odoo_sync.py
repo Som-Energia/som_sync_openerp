@@ -17,6 +17,7 @@ MAPPING_MODELS_GET = {
     'res.country': 'country',
     'res.municipi': 'city',
     'res.partner': 'partner',
+    'res.partner.address': 'partner',
     'res.partner.bank': 'bank',
 }
 
@@ -27,6 +28,7 @@ MAPPING_MODELS_ENTITIES = {
     'res.country': 'country',
     'res.municipi': 'city',
     'res.partner': 'partner',
+    'res.partner.address': 'partner',
     'res.partner.bank': 'bank',
 }
 
@@ -35,6 +37,7 @@ MAPPING_MODELS_POST = {
     'account.account': 'accounts',
     'res.country.state': 'states',
     'res.partner': 'partners',
+    'res.partner.address': 'partners',
     'res.partner.bank': 'banks',
 }
 

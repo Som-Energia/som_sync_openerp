@@ -7,6 +7,7 @@ class ResPartnerAddress(osv.osv):
     _inherit = 'res.partner.address'
 
     MAPPING_FIELDS_TO_SYNC = {
+        'id': 'pnt_erp_id',
         'name': 'name',
         # 'type': 'type', not mapped, is a constant
         'email': 'email',
@@ -17,6 +18,7 @@ class ResPartnerAddress(osv.osv):
     # TODO: Add foreign keys when API doc is available
     MAPPING_FK = {
         'municipi_id': 'res.municipi',
+        'partner_id': 'res.partner',
     }
 
     MAPPING_CONSTANTS = {
@@ -25,10 +27,10 @@ class ResPartnerAddress(osv.osv):
     }
 
     def get_endpoint_suffix(self, cr, uid, id, context={}):
-        partner = self.browse(cr, uid, id, context=context)
-        if partner.partner_id.vat:
+        address = self.browse(cr, uid, id, context=context)
+        if address.partner_id.vat:
             # TODO: check with API doc when available
-            res = '{}'.format(partner.partner_id.vat)
+            res = 'other/{}'.format(address.partner_id.vat)
             return res
         else:
             return False
@@ -36,10 +38,9 @@ class ResPartnerAddress(osv.osv):
     def create(self, cr, uid, vals, context={}):
         ids = super(ResPartnerAddress, self).create(cr, uid, vals, context=context)
 
-        # TODO: Uncomment when ready to sync partners
-        # sync_obj = self.pool.get('odoo.sync')
-        # res = sync_obj.syncronize_sync(
-        #     cr, uid, self._name, 'create', ids, context=context)
+        sync_obj = self.pool.get('odoo.sync')
+        sync_obj.syncronize_sync(
+            cr, uid, self._name, 'create', ids, context=context)
 
         return ids
 
