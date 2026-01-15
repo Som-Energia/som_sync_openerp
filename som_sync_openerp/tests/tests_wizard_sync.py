@@ -53,9 +53,9 @@ class TestWizardSyncObjectOdoo(testing.OOTestCaseWithCursor):
         # Verify syncronize_sync was called for each id
         self.assertEqual(self.sync_obj.syncronize_sync.call_count, 3)
 
-        # Verify arguments of the last call
-        self.sync_obj.syncronize_sync.has_calls(
+        # Verify arguments of the calls
+        self.sync_obj.syncronize_sync.assert_has_calls([
             call(ANY, self.uid, u'res.partner', 'sync', 2, context=context),
             call(ANY, self.uid, u'res.country', 'sync', 2, context=context),
             call(ANY, self.uid, u'res.country.state', 'sync', 5, context=context),
-        )
+        ])
