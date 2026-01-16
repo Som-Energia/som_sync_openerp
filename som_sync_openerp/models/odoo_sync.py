@@ -10,8 +10,8 @@ import logging
 
 FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
 
-# Mapping of models: key -> erp model, value -> odoo endpoint sufix
-MAPPING_MODELS_GET = {
+# Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
+MAPPING_MODELS_ENTITIES = {
     'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
@@ -21,8 +21,8 @@ MAPPING_MODELS_GET = {
     'res.partner.bank': 'bank',
 }
 
-# Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
-MAPPING_MODELS_ENTITIES = {
+# Mapping of models: key -> erp model, value -> odoo endpoint sufix
+MAPPING_MODELS_GET = {
     'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
@@ -209,14 +209,16 @@ class OdooSync(osv.osv):
                             'sync_state': 'synced',
                             'update_last_sync': True,
                         })
-                # WIP: Update logic for existing records in Odoo
-                erp_data.pop('pnt_erp_id', False)
-                odoo_metadata.pop('company_id', False)
-                odoo_metadata.pop('company_name', False)
-                # for account we need https://github.com/puntsistemes/som-energia_odoo/pull/39
-                # compare erp_data and odoo_metadata and if different update Odoo
-                if erp_data != odoo_metadata:
-                    self.update_odoo_record(cursor, uid, model, odoo_id, erp_data, context)
+
+                if self.MAPPING_MODELS_PATCH.get(model, False):
+                    # WIP: Update logic for existing records in Odoo
+                    erp_data.pop('pnt_erp_id', False)
+                    odoo_metadata.pop('company_id', False)
+                    odoo_metadata.pop('company_name', False)
+                    # for account we need https://github.com/puntsistemes/som-energia_odoo/pull/39
+                    # compare erp_data and odoo_metadata and if different update Odoo
+                    if erp_data != odoo_metadata:
+                        self.update_odoo_record(cursor, uid, model, odoo_id, erp_data, context)
 
             else:
                 # Case: Record does not exist in Odoo, proceed to create it
