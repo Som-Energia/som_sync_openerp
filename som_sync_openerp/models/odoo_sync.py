@@ -10,8 +10,8 @@ import logging
 
 FF_ENABLE_ODOO_SYNC = True  # TODO: as variable in res.config ??
 
-# Mapping of models: key -> erp model, value -> odoo endpoint sufix
-MAPPING_MODELS_GET = {
+# Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
+MAPPING_MODELS_ENTITIES = {
     'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
@@ -21,8 +21,12 @@ MAPPING_MODELS_GET = {
     'res.partner.bank': 'bank',
 }
 
-# Mapping of models entities to update erp_id in Odoo: key -> erp model, value -> odoo entity name
-MAPPING_MODELS_ENTITIES = {
+STATIC_MODELS = [
+    'account.fiscal.position',
+]
+
+# Mapping of models: key -> erp model, value -> odoo endpoint sufix
+MAPPING_MODELS_GET = {
     'account.account': 'account',
     'res.country.state': 'state',
     'res.country': 'country',
@@ -148,6 +152,13 @@ class OdooSync(osv.osv):
         if context is None:
             context = {}
 
+        # Check if model is static
+        if model in STATIC_MODELS and context.get('odoo_id', False):
+            self.create_static_odoo_sync_record(
+                cursor, uid, model, openerp_id, context['odoo_id'], context
+            )
+            return context.get('odoo_id', False), openerp_id
+
         # Early return if synchronization is disabled for this specific model
         if not self.sync_model_enabled(cursor, uid, model):
             return False, False
@@ -209,14 +220,16 @@ class OdooSync(osv.osv):
                             'sync_state': 'synced',
                             'update_last_sync': True,
                         })
-                # WIP: Update logic for existing records in Odoo
-                erp_data.pop('pnt_erp_id', False)
-                odoo_metadata.pop('company_id', False)
-                odoo_metadata.pop('company_name', False)
-                # for account we need https://github.com/puntsistemes/som-energia_odoo/pull/39
-                # compare erp_data and odoo_metadata and if different update Odoo
-                if erp_data != odoo_metadata:
-                    self.update_odoo_record(cursor, uid, model, odoo_id, erp_data, context)
+
+                if self.MAPPING_MODELS_PATCH.get(model, False):
+                    # WIP: Update logic for existing records in Odoo
+                    erp_data.pop('pnt_erp_id', False)
+                    odoo_metadata.pop('company_id', False)
+                    odoo_metadata.pop('company_name', False)
+                    # for account we need https://github.com/puntsistemes/som-energia_odoo/pull/39
+                    # compare erp_data and odoo_metadata and if different update Odoo
+                    if erp_data != odoo_metadata:
+                        self.update_odoo_record(cursor, uid, model, odoo_id, erp_data, context)
 
             else:
                 # Case: Record does not exist in Odoo, proceed to create it
@@ -263,6 +276,26 @@ class OdooSync(osv.osv):
             self.update_odoo_id(cursor, uid, model, openerp_id, odoo_id, context=final_context)
 
         return odoo_id, erp_id
+
+    def create_static_odoo_sync_record(self, cursor, uid, model, openerp_id, odoo_id, context={}):
+        record_ids = self.search(cursor, uid, [
+            ('model.model', '=', model),
+            ('res_id', '=', openerp_id),
+        ])
+        if record_ids:
+            self.write(cursor, uid, record_ids, {
+                'odoo_id': odoo_id,
+                'sync_state': 'static',
+            }, context=context)
+        else:
+            self.create(cursor, uid, {
+                'model': self.pool.get('ir.model').search(
+                    cursor, uid, [('model', '=', model)], limit=1
+                )[0],
+                'res_id': openerp_id,
+                'odoo_id': odoo_id,
+                'sync_state': 'static',
+            }, context=context)
 
     def create_odoo_record(self, cursor, uid, model, data, context={}):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
@@ -467,6 +500,7 @@ class OdooSync(osv.osv):
             ('synced', 'Synced'),
             ('pending', 'Pending'),
             ('error', 'Error'),
+            ('static', 'Static'),
         ], 'Syncronization state', required=True),
     }
 
