@@ -73,6 +73,7 @@ class OdooSync(osv.osv):
         res.pop('update_odoo_updated_sync', False)
         res.pop('odoo_last_update_result', False)
         res.pop('sync_state', False)
+        res.pop('odoo_id', False)
         return res
 
     def get_model_vals_to_sync(self, cursor, uid, model, id, context={}):
@@ -153,11 +154,11 @@ class OdooSync(osv.osv):
             context = {}
 
         # Check if model is static
-        if model in STATIC_MODELS and context.get('odoo_id', False):
-            self.create_static_odoo_sync_record(
-                cursor, uid, model, openerp_id, context['odoo_id'], context
+        if model in STATIC_MODELS:
+            odoo_id = self.get_static_odoo_sync_record(
+                cursor, uid, model, openerp_id, context.get('odoo_id', False), context
             )
-            return context.get('odoo_id', False), openerp_id
+            return odoo_id, openerp_id
 
         # Early return if synchronization is disabled for this specific model
         if not self.sync_model_enabled(cursor, uid, model):
@@ -221,7 +222,7 @@ class OdooSync(osv.osv):
                             'update_last_sync': True,
                         })
 
-                if self.MAPPING_MODELS_PATCH.get(model, False):
+                if MAPPING_MODELS_PATCH.get(model, False):
                     # WIP: Update logic for existing records in Odoo
                     erp_data.pop('pnt_erp_id', False)
                     odoo_metadata.pop('company_id', False)
@@ -277,25 +278,37 @@ class OdooSync(osv.osv):
 
         return odoo_id, erp_id
 
-    def create_static_odoo_sync_record(self, cursor, uid, model, openerp_id, odoo_id, context={}):
-        record_ids = self.search(cursor, uid, [
+    def get_static_odoo_sync_record(
+            self, cursor, uid, model, openerp_id, odoo_id=False, context={}):
+        sync_ids = self.search(cursor, uid, [
             ('model.model', '=', model),
             ('res_id', '=', openerp_id),
         ])
-        if record_ids:
-            self.write(cursor, uid, record_ids, {
-                'odoo_id': odoo_id,
-                'sync_state': 'static',
-            }, context=context)
-        else:
-            self.create(cursor, uid, {
-                'model': self.pool.get('ir.model').search(
-                    cursor, uid, [('model', '=', model)], limit=1
-                )[0],
-                'res_id': openerp_id,
-                'odoo_id': odoo_id,
-                'sync_state': 'static',
-            }, context=context)
+        if sync_ids:
+            # sync record exists and we check if we need to update odoo_id
+            sync_id = sync_ids[0]
+            current_odoo_id = self.read(cursor, uid, sync_id, ['odoo_id'])['odoo_id']
+            if odoo_id and odoo_id != current_odoo_id:
+                self.write(cursor, uid, sync_id, {
+                    'odoo_id': odoo_id,
+                    'sync_state': 'static',
+                }, context=context)
+                return odoo_id
+            return current_odoo_id
+
+        # No sync record exists → create only if we have odoo_id
+        if not odoo_id:
+            return False
+
+        # we create the static sync record
+        sync_id = self.create(cursor, uid, {
+            'model': self.pool.get('ir.model').search(
+                cursor, uid, [('model', '=', model)], limit=1)[0],
+            'res_id': openerp_id,
+            'odoo_id': odoo_id,
+            'sync_state': 'static',
+        }, context=context)
+        return odoo_id
 
     def create_odoo_record(self, cursor, uid, model, data, context={}):
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
