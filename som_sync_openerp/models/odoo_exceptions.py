@@ -27,3 +27,17 @@ class ERPObjectNotExistsException(Exception):
 
     def __str__(self):
         return self.__repr__()
+
+
+class UpdateNotSupportedException(Exception):
+    """Update operation not supported in Odoo API for this model"""
+
+    def __init__(self, msg):
+        super(UpdateNotSupportedException, self).__init__(msg)
+        self.msg = "Odoo no permet l'actualització de models {}".format(msg)
+
+    def __repr__(self):
+        return self.msg
+
+    def __str__(self):
+        return self.__repr__()

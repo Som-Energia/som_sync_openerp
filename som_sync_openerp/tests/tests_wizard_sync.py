@@ -31,13 +31,13 @@ class TestWizardSyncObjectOdoo(testing.OOTestCaseWithCursor):
 
     def test_action_sync__odoo_sync(self):
         osdemo_1 = self.imd_obj.get_object_reference(
-            self.cursor, self.uid, "som_sync_openerp", "odoo_sync_demo_1"
+            self.cursor, self.uid, "som_sync_openerp", "odoo_partner_already_syncred"
         )[1]
         osdemo_2 = self.imd_obj.get_object_reference(
-            self.cursor, self.uid, "som_sync_openerp", "odoo_sync_demo_2"
+            self.cursor, self.uid, "som_sync_openerp", "odoo_country_pending"
         )[1]
         osdemo_3 = self.imd_obj.get_object_reference(
-            self.cursor, self.uid, "som_sync_openerp", "odoo_sync_demo_3"
+            self.cursor, self.uid, "som_sync_openerp", "odoo_country_state_error"
         )[1]
 
         # Mock syncronize_sync method
