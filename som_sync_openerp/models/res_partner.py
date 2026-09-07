@@ -107,9 +107,10 @@ class ResPartner(osv.osv):
         res = super(ResPartner, self).write(cr, uid, ids, vals, context=context)
 
         if any(field in vals for field in self.MAPPING_TRIGGER_WRITE):
-            sync_obj = self.pool.get('odoo.sync')
-            sync_obj.common_sync_model_create_update(
-                cr, uid, self._name, 'write', ids, context=context)
+            with Sudo(uid=1, gid=0):
+                sync_obj = self.pool.get('odoo.sync')
+                sync_obj.common_sync_model_create_update(
+                    cr, uid, self._name, 'write', ids, context=context)
 
         return res
 
