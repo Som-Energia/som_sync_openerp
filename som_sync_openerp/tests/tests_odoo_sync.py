@@ -7,7 +7,7 @@ import netsvc
 from destral import testing
 from ..models import odoo_sync
 from som_sync_openerp.models.odoo_exceptions import (
-    CreationNotSupportedException, ERPObjectNotExistsException
+    CreationNotSupportedException, ERPObjectNotExistsException, ForeingKeyNotAvailable
 )
 
 
@@ -349,7 +349,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             mock_local_partner_odoo_id, mock_update_odoo_id):
         mock_common_sync_model_create_update.return_value = (3, 3)
         mock_local_partner_odoo_id.return_value = False
-        mock_partner_odoo_id.return_value = 3
+        mock_partner_odoo_id.return_value = (3, True)
         address_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, 'base', 'res_partner_address_8'
         )[1]
@@ -359,7 +359,8 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         )
 
         self.assertEqual(self.sync_obj.common_sync_model_create_update.call_count, 0)
-        mock_partner_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 3)
+        mock_partner_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', 3, return_status=True)
         mock_update_odoo_id.assert_called_once_with(
             mock.ANY, self.uid, 'res.partner', 3, 3,
             context={'sync_state': 'synced', 'update_last_sync': True})
@@ -391,7 +392,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             mock_local_partner_odoo_id, mock_update_odoo_id):
         mock_syncronize_sync.return_value = (2, 2)
         mock_local_partner_odoo_id.return_value = False
-        mock_partner_odoo_id.return_value = 2
+        mock_partner_odoo_id.return_value = (2, True)
         iva_tax_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, "som_sync_openerp", "account_tax_iva"
         )[1]
@@ -430,7 +431,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         self.assertEqual(vals, expected_vals)
         partner_id = self.ai_obj.browse(self.cursor, self.uid, invoice_id).partner_id.id
         mock_partner_odoo_id.assert_called_once_with(
-            mock.ANY, self.uid, 'res.partner', partner_id)
+            mock.ANY, self.uid, 'res.partner', partner_id, return_status=True)
         mock_update_odoo_id.assert_called_once_with(
             mock.ANY, self.uid, 'res.partner', partner_id, 2,
             context={'sync_state': 'synced', 'update_last_sync': True})
@@ -448,7 +449,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             mock_local_partner_odoo_id, mock_update_odoo_id):
         mock_syncronize_sync.return_value = (2, 2)
         mock_local_partner_odoo_id.return_value = False
-        mock_partner_odoo_id.return_value = False
+        mock_partner_odoo_id.return_value = (False, True)
         iva_tax_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, "som_sync_openerp", "account_tax_iva"
         )[1]
@@ -464,7 +465,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
 
         self.assertEqual(vals['partner_id'], 2)
         mock_partner_odoo_id.assert_called_once_with(
-            mock.ANY, self.uid, 'res.partner', partner_id)
+            mock.ANY, self.uid, 'res.partner', partner_id, return_status=True)
         mock_update_odoo_id.assert_not_called()
         mock_syncronize_sync.assert_any_call(
             mock.ANY, self.uid, 'res.partner', 'sync', partner_id, {'from_fk_sync': True})
@@ -475,13 +476,14 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
     def test__get_partner_odoo_id_by_erp_id__uses_local_mapping(
             self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
         mock_local_odoo_id.return_value = 2
-        mock_remote_odoo_id.return_value = 2
+        mock_remote_odoo_id.return_value = (2, True)
 
         odoo_id = self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
 
         self.assertEqual(odoo_id, 2)
         mock_local_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 1)
-        mock_remote_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 1)
+        mock_remote_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', 1, return_status=True)
         mock_update_odoo_id.assert_not_called()
 
     @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
@@ -490,7 +492,7 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
     def test__get_partner_odoo_id_by_erp_id__refreshes_stale_local_mapping(
             self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
         mock_local_odoo_id.return_value = 2
-        mock_remote_odoo_id.return_value = 3
+        mock_remote_odoo_id.return_value = (3, True)
 
         odoo_id = self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
 
@@ -498,6 +500,43 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         mock_update_odoo_id.assert_called_once_with(
             mock.ANY, self.uid, 'res.partner', 1, 3,
             context={'sync_state': 'synced', 'update_last_sync': True})
+
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    def test__get_partner_odoo_id_by_erp_id__fails_on_remote_failure(
+            self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
+        mock_local_odoo_id.return_value = 2
+        mock_remote_odoo_id.return_value = (False, False)
+
+        with self.assertRaises(ForeingKeyNotAvailable):
+            self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
+
+        mock_update_odoo_id.assert_not_called()
+
+    @mock.patch('som_sync_openerp.models.odoo_sync.requests.get')
+    @mock.patch.object(odoo_sync.OdooSync, "_get_conn_params")
+    def test__get_odoo_id_by_erp_id_from_odoo__remote_failure_is_inconclusive(
+            self, mock_get_conn_params, mock_requests_get):
+        mock_get_conn_params.return_value = ('http://odoo.test/api/', 'key')
+        mock_requests_get.side_effect = odoo_sync.requests.ConnectionError()
+
+        result = self.sync_obj.get_odoo_id_by_erp_id_from_odoo(
+            self.cursor, self.uid, 'res.partner', 1, return_status=True)
+
+        self.assertEqual(result, (False, False))
+
+    @mock.patch('som_sync_openerp.models.odoo_sync.requests.get')
+    @mock.patch.object(odoo_sync.OdooSync, "_get_conn_params")
+    def test__get_odoo_id_by_erp_id_from_odoo__server_error_is_inconclusive(
+            self, mock_get_conn_params, mock_requests_get):
+        mock_get_conn_params.return_value = ('http://odoo.test/api/', 'key')
+        mock_requests_get.return_value.status_code = 500
+
+        result = self.sync_obj.get_odoo_id_by_erp_id_from_odoo(
+            self.cursor, self.uid, 'res.partner', 1, return_status=True)
+
+        self.assertEqual(result, (False, False))
 
     def test__get_dict_to_patch(self):
         erp_data = {

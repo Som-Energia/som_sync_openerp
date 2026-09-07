@@ -253,8 +253,10 @@ class OdooSync(osv.osv):
     def get_partner_odoo_id_by_erp_id(self, cursor, uid, erp_id):
         local_odoo_id = self.get_odoo_id_by_erp_id(
             cursor, uid, 'res.partner', erp_id)
-        odoo_id = self.get_odoo_id_by_erp_id_from_odoo(
-            cursor, uid, 'res.partner', erp_id)
+        odoo_id, is_conclusive = self.get_odoo_id_by_erp_id_from_odoo(
+            cursor, uid, 'res.partner', erp_id, return_status=True)
+        if not is_conclusive:
+            raise ForeingKeyNotAvailable('res.partner,{}'.format(erp_id))
         if not odoo_id:
             return False
         if odoo_id != local_odoo_id:
@@ -851,7 +853,8 @@ class OdooSync(osv.osv):
 
         return result
 
-    def get_odoo_id_by_erp_id_from_odoo(self, cursor, uid, model, erp_id):
+    def get_odoo_id_by_erp_id_from_odoo(
+            self, cursor, uid, model, erp_id, return_status=False):
         # This method is used when we want to get the odoo_id from Odoo using the ERP id,
         # in cases where we don't have the sync record created yet in OpenERP
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
@@ -861,12 +864,26 @@ class OdooSync(osv.osv):
             "X-API-Key": odoo_api_key,
             "Accept": "application/json",
         }
-        response = requests.get(url_base, headers=headers)
+        try:
+            response = requests.get(url_base, headers=headers)
+        except requests.RequestException:
+            if return_status:
+                return False, False
+            raise
         if response.status_code == 200:
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError:
+                if return_status:
+                    return False, False
+                raise
             if data and 'success' in data and data.get('success', False):
                 odoo_id = data.get('data', {}).get('odoo_id', False)
+                if return_status:
+                    return odoo_id, bool(odoo_id)
                 return odoo_id
+        if return_status:
+            return False, response.status_code == 404
         return False
 
     def get_odoo_id_by_erp_id(self, cursor, uid, model, erp_id):
