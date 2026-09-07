@@ -475,13 +475,29 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
     def test__get_partner_odoo_id_by_erp_id__uses_local_mapping(
             self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
         mock_local_odoo_id.return_value = 2
+        mock_remote_odoo_id.return_value = 2
 
         odoo_id = self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
 
         self.assertEqual(odoo_id, 2)
         mock_local_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 1)
-        mock_remote_odoo_id.assert_not_called()
+        mock_remote_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 1)
         mock_update_odoo_id.assert_not_called()
+
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    def test__get_partner_odoo_id_by_erp_id__refreshes_stale_local_mapping(
+            self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
+        mock_local_odoo_id.return_value = 2
+        mock_remote_odoo_id.return_value = 3
+
+        odoo_id = self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
+
+        self.assertEqual(odoo_id, 3)
+        mock_update_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', 1, 3,
+            context={'sync_state': 'synced', 'update_last_sync': True})
 
     def test__get_dict_to_patch(self):
         erp_data = {

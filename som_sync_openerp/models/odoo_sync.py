@@ -251,16 +251,16 @@ class OdooSync(osv.osv):
         return result_data
 
     def get_partner_odoo_id_by_erp_id(self, cursor, uid, erp_id):
-        odoo_id = self.get_odoo_id_by_erp_id(cursor, uid, 'res.partner', erp_id)
-        if odoo_id:
-            return odoo_id
+        local_odoo_id = self.get_odoo_id_by_erp_id(
+            cursor, uid, 'res.partner', erp_id)
         odoo_id = self.get_odoo_id_by_erp_id_from_odoo(
             cursor, uid, 'res.partner', erp_id)
         if not odoo_id:
             return False
-        self.update_odoo_id(
-            cursor, uid, 'res.partner', erp_id, odoo_id,
-            context={'sync_state': 'synced', 'update_last_sync': True})
+        if odoo_id != local_odoo_id:
+            self.update_odoo_id(
+                cursor, uid, 'res.partner', erp_id, odoo_id,
+                context={'sync_state': 'synced', 'update_last_sync': True})
         return odoo_id
 
     def check_erp_record_exist(self, cursor, uid, model, openerp_id):
