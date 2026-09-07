@@ -340,9 +340,16 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         }
         self.assertEqual(vals, expected_vals)
 
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
     @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
-    def test__get_model_vals_to_sync__partner_address(self, mock_common_sync_model_create_update):
+    def test__get_model_vals_to_sync__partner_address(
+            self, mock_common_sync_model_create_update, mock_partner_odoo_id,
+            mock_local_partner_odoo_id, mock_update_odoo_id):
         mock_common_sync_model_create_update.return_value = (3, 3)
+        mock_local_partner_odoo_id.return_value = False
+        mock_partner_odoo_id.return_value = 3
         address_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, 'base', 'res_partner_address_8'
         )[1]
@@ -351,10 +358,11 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             self.cursor, self.uid, 'res.partner.address', address_id
         )
 
-        self.assertEqual(self.sync_obj.common_sync_model_create_update.call_count, 1)
-        self.sync_obj.common_sync_model_create_update.assert_has_calls([
-            mock.call(mock.ANY, self.uid, 'res.partner', 'sync', 3, {'from_fk_sync': True}),
-        ])
+        self.assertEqual(self.sync_obj.common_sync_model_create_update.call_count, 0)
+        mock_partner_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 3)
+        mock_update_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', 3, 3,
+            context={'sync_state': 'synced', 'update_last_sync': True})
         expected_vals = {
             'city': u'Wavre',
             'email': '',
@@ -373,10 +381,17 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
         }
         self.assertEqual(vals, expected_vals)
 
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
     @mock.patch.object(odoo_sync.OdooSync, "get_erp_id_by_odoo_id")
     @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
-    def test__get_model_vals_to_sync__invoice(self, mock_syncronize_sync, mock_erp_id):
+    def test__get_model_vals_to_sync__invoice(
+            self, mock_syncronize_sync, mock_erp_id, mock_partner_odoo_id,
+            mock_local_partner_odoo_id, mock_update_odoo_id):
         mock_syncronize_sync.return_value = (2, 2)
+        mock_local_partner_odoo_id.return_value = False
+        mock_partner_odoo_id.return_value = 2
         iva_tax_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, "som_sync_openerp", "account_tax_iva"
         )[1]
@@ -413,6 +428,60 @@ class TestOdooSync(testing.OOTestCaseWithCursor):
             'preferred_payment_method_line_id': None,
         }
         self.assertEqual(vals, expected_vals)
+        partner_id = self.ai_obj.browse(self.cursor, self.uid, invoice_id).partner_id.id
+        mock_partner_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', partner_id)
+        mock_update_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', partner_id, 2,
+            context={'sync_state': 'synced', 'update_last_sync': True})
+        partner_sync_call = mock.call(
+            mock.ANY, self.uid, 'res.partner', 'sync', partner_id, {'from_fk_sync': True})
+        self.assertNotIn(partner_sync_call, mock_syncronize_sync.call_args_list)
+
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
+    @mock.patch.object(odoo_sync.OdooSync, "get_erp_id_by_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
+    def test__get_model_vals_to_sync__invoice_partner_falls_back_to_sync(
+            self, mock_syncronize_sync, mock_erp_id, mock_partner_odoo_id,
+            mock_local_partner_odoo_id, mock_update_odoo_id):
+        mock_syncronize_sync.return_value = (2, 2)
+        mock_local_partner_odoo_id.return_value = False
+        mock_partner_odoo_id.return_value = False
+        iva_tax_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, "som_sync_openerp", "account_tax_iva"
+        )[1]
+        mock_erp_id.return_value = iva_tax_id
+        invoice_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, 'som_sync_openerp', 'invoice_0001'
+        )[1]
+        partner_id = self.ai_obj.browse(self.cursor, self.uid, invoice_id).partner_id.id
+
+        vals = self.sync_obj.get_model_vals_to_sync(
+            self.cursor, self.uid, 'account.invoice', invoice_id
+        )
+
+        self.assertEqual(vals['partner_id'], 2)
+        mock_partner_odoo_id.assert_called_once_with(
+            mock.ANY, self.uid, 'res.partner', partner_id)
+        mock_update_odoo_id.assert_not_called()
+        mock_syncronize_sync.assert_any_call(
+            mock.ANY, self.uid, 'res.partner', 'sync', partner_id, {'from_fk_sync': True})
+
+    @mock.patch.object(odoo_sync.OdooSync, "update_odoo_id")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id_from_odoo")
+    @mock.patch.object(odoo_sync.OdooSync, "get_odoo_id_by_erp_id")
+    def test__get_partner_odoo_id_by_erp_id__uses_local_mapping(
+            self, mock_local_odoo_id, mock_remote_odoo_id, mock_update_odoo_id):
+        mock_local_odoo_id.return_value = 2
+
+        odoo_id = self.sync_obj.get_partner_odoo_id_by_erp_id(self.cursor, self.uid, 1)
+
+        self.assertEqual(odoo_id, 2)
+        mock_local_odoo_id.assert_called_once_with(mock.ANY, self.uid, 'res.partner', 1)
+        mock_remote_odoo_id.assert_not_called()
+        mock_update_odoo_id.assert_not_called()
 
     def test__get_dict_to_patch(self):
         erp_data = {

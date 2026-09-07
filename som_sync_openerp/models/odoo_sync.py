@@ -209,8 +209,13 @@ class OdooSync(osv.osv):
                 if not id_fk:
                     data[fk_field] = None
                 else:
-                    odoo_id, _ = self.common_sync_model_create_update(
-                        cursor, uid, model_fk, 'sync', id_fk[0], context_copy)
+                    odoo_id = False
+                    if model_fk == 'res.partner':
+                        odoo_id = self.get_partner_odoo_id_by_erp_id(
+                            cursor, uid, id_fk[0])
+                    if not odoo_id:
+                        odoo_id, _ = self.common_sync_model_create_update(
+                            cursor, uid, model_fk, 'sync', id_fk[0], context_copy)
                     if not odoo_id:
                         raise ForeingKeyNotAvailable("{},{}".format(model_fk, id_fk[0]))
                     data[fk_field] = odoo_id
@@ -244,6 +249,19 @@ class OdooSync(osv.osv):
             result_data.update(hook_data)
 
         return result_data
+
+    def get_partner_odoo_id_by_erp_id(self, cursor, uid, erp_id):
+        odoo_id = self.get_odoo_id_by_erp_id(cursor, uid, 'res.partner', erp_id)
+        if odoo_id:
+            return odoo_id
+        odoo_id = self.get_odoo_id_by_erp_id_from_odoo(
+            cursor, uid, 'res.partner', erp_id)
+        if not odoo_id:
+            return False
+        self.update_odoo_id(
+            cursor, uid, 'res.partner', erp_id, odoo_id,
+            context={'sync_state': 'synced', 'update_last_sync': True})
+        return odoo_id
 
     def check_erp_record_exist(self, cursor, uid, model, openerp_id):
         rp_obj = self.pool.get(model)
