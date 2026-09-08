@@ -34,6 +34,20 @@ class ResPartner(osv.osv):
         'is_company': True,
     }
 
+    # VAT is intentionally excluded until the Odoo partner PATCH endpoint supports it.
+    MAPPING_TRIGGER_WRITE = (
+        'name',
+        'lang',
+        'customer',
+        'supplier',
+        'property_account_receivable',
+        'property_account_payable',
+        'property_account_position',
+        'property_payment_term',
+        'payment_type_customer',
+        'payment_type_supplier',
+    )
+
     def get_related_values(self, cr, uid, id, context=None):
         if context is None:
             context = {}
@@ -83,6 +97,22 @@ class ResPartner(osv.osv):
             )
 
         return ids
+
+    def write(self, cr, uid, ids, vals, context=None):
+        if context is None:
+            context = {}
+        if not isinstance(ids, list):
+            ids = [ids]
+
+        res = super(ResPartner, self).write(cr, uid, ids, vals, context=context)
+
+        if any(field in vals for field in self.MAPPING_TRIGGER_WRITE):
+            with Sudo(uid=1, gid=0):
+                sync_obj = self.pool.get('odoo.sync')
+                sync_obj.common_sync_model_create_update(
+                    cr, uid, self._name, 'write', ids, context=context)
+
+        return res
 
     def hook_last_modifications(self, cr, uid, data, context=None):
         """

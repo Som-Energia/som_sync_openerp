@@ -52,3 +52,24 @@ class TestResPartner(testing.OOTestCaseWithCursor):
             'property_outbound_payment_method_line_id': payment_type_id  # Transferencias APi
         }
         self.assertEqual(related_values, expected_values)
+
+    @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
+    def test__write_syncs_patchable_fields(self, mock_sync):
+        partner_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, "base", "res_partner_agrolait"
+        )[1]
+
+        self.rp_obj.write(self.cursor, self.uid, partner_id, {'name': 'Updated partner'})
+
+        mock_sync.assert_called_once_with(
+            self.cursor, self.uid, 'res.partner', 'write', [partner_id], context={})
+
+    @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
+    def test__write_does_not_sync_vat_until_patch_supports_it(self, mock_sync):
+        partner_id = self.imd_obj.get_object_reference(
+            self.cursor, self.uid, "base", "res_partner_agrolait"
+        )[1]
+
+        self.rp_obj.write(self.cursor, self.uid, partner_id, {'vat': 'ES72789709E'})
+
+        mock_sync.assert_not_called()

@@ -17,11 +17,13 @@ class TestAccountMove(testing.OOTestCaseWithCursor):
         super(TestAccountMove, self).setUp()
 
     @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
-    def test__get_related_values(self, mock_syncronize_sync):
+    @mock.patch.object(odoo_sync.OdooSync, "get_partner_odoo_id_by_erp_id")
+    def test__get_related_values(self, mock_partner_odoo_id, mock_syncronize_sync):
         move_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, "som_sync_openerp", "account_move_001"
         )[1]
         mock_syncronize_sync.return_value = (99, 1)
+        mock_partner_odoo_id.return_value = False
 
         related_values = self.am_obj.get_related_values(
             self.cursor, self.uid, move_id
@@ -47,7 +49,9 @@ class TestAccountMove(testing.OOTestCaseWithCursor):
         self.assertEqual(related_values, expected_values)
 
     @mock.patch.object(odoo_sync.OdooSync, "common_sync_model_create_update")
-    def test__get_related_values_prioritizes_ref_over_name(self, mock_syncronize_sync):
+    @mock.patch.object(odoo_sync.OdooSync, "get_partner_odoo_id_by_erp_id")
+    def test__get_related_values_prioritizes_ref_over_name(
+            self, mock_partner_odoo_id, mock_syncronize_sync):
         move_id = self.imd_obj.get_object_reference(
             self.cursor, self.uid, "som_sync_openerp", "account_move_001"
         )[1]
@@ -55,6 +59,7 @@ class TestAccountMove(testing.OOTestCaseWithCursor):
             self.cursor, self.uid, "som_sync_openerp", "account_move_line_001"
         )[1]
         mock_syncronize_sync.return_value = (99, 1)
+        mock_partner_odoo_id.return_value = False
 
         self.aml_obj.write(self.cursor, self.uid, [line_id], {'ref': 'REF-001'})
 

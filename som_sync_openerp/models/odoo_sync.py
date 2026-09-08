@@ -209,8 +209,13 @@ class OdooSync(osv.osv):
                 if not id_fk:
                     data[fk_field] = None
                 else:
-                    odoo_id, _ = self.common_sync_model_create_update(
-                        cursor, uid, model_fk, 'sync', id_fk[0], context_copy)
+                    odoo_id = False
+                    if model_fk == 'res.partner':
+                        odoo_id = self.get_partner_odoo_id_by_erp_id(
+                            cursor, uid, id_fk[0])
+                    if not odoo_id:
+                        odoo_id, _ = self.common_sync_model_create_update(
+                            cursor, uid, model_fk, 'sync', id_fk[0], context_copy)
                     if not odoo_id:
                         raise ForeingKeyNotAvailable("{},{}".format(model_fk, id_fk[0]))
                     data[fk_field] = odoo_id
@@ -244,6 +249,21 @@ class OdooSync(osv.osv):
             result_data.update(hook_data)
 
         return result_data
+
+    def get_partner_odoo_id_by_erp_id(self, cursor, uid, erp_id):
+        local_odoo_id = self.get_odoo_id_by_erp_id(
+            cursor, uid, 'res.partner', erp_id)
+        odoo_id, is_conclusive = self.get_odoo_id_by_erp_id_from_odoo(
+            cursor, uid, 'res.partner', erp_id, return_status=True)
+        if not is_conclusive:
+            raise ForeingKeyNotAvailable('res.partner,{}'.format(erp_id))
+        if not odoo_id:
+            return False
+        if odoo_id != local_odoo_id:
+            self.update_odoo_id(
+                cursor, uid, 'res.partner', erp_id, odoo_id,
+                context={'sync_state': 'synced', 'update_last_sync': True})
+        return odoo_id
 
     def check_erp_record_exist(self, cursor, uid, model, openerp_id):
         rp_obj = self.pool.get(model)
@@ -833,7 +853,8 @@ class OdooSync(osv.osv):
 
         return result
 
-    def get_odoo_id_by_erp_id_from_odoo(self, cursor, uid, model, erp_id):
+    def get_odoo_id_by_erp_id_from_odoo(
+            self, cursor, uid, model, erp_id, return_status=False):
         # This method is used when we want to get the odoo_id from Odoo using the ERP id,
         # in cases where we don't have the sync record created yet in OpenERP
         odoo_url_api, odoo_api_key = self._get_conn_params(cursor, uid)
@@ -843,12 +864,26 @@ class OdooSync(osv.osv):
             "X-API-Key": odoo_api_key,
             "Accept": "application/json",
         }
-        response = requests.get(url_base, headers=headers)
+        try:
+            response = requests.get(url_base, headers=headers)
+        except requests.RequestException:
+            if return_status:
+                return False, False
+            raise
         if response.status_code == 200:
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError:
+                if return_status:
+                    return False, False
+                raise
             if data and 'success' in data and data.get('success', False):
                 odoo_id = data.get('data', {}).get('odoo_id', False)
+                if return_status:
+                    return odoo_id, bool(odoo_id)
                 return odoo_id
+        if return_status:
+            return False, response.status_code == 404
         return False
 
     def get_odoo_id_by_erp_id(self, cursor, uid, model, erp_id):
