@@ -368,6 +368,9 @@ class OdooSync(osv.osv):
         if hasattr(rp_obj, 'get_related_values'):
             patch_data.update(
                 rp_obj.get_related_values(cursor, uid, openerp_id, context=context))
+        if hasattr(rp_obj, 'get_related_values_to_patch'):
+            patch_data.update(rp_obj.get_related_values_to_patch(
+                cursor, uid, openerp_id, vals, context=context))
         if hasattr(rp_obj, 'hook_last_modifications'):
             patch_data.update(
                 rp_obj.hook_last_modifications(cursor, uid, patch_data, context=context))

@@ -65,6 +65,14 @@ class ResPartner(osv.osv):
                 }
         return res
 
+    def get_related_values_to_patch(self, cr, uid, id, vals, context=None):
+        if context is None:
+            context = {}
+        if ('payment_type_supplier' in vals
+                and not vals['payment_type_supplier']):
+            return {'property_outbound_payment_method_line_id': None}
+        return {}
+
     def get_endpoint_odoo_record_suffix(self, cr, uid, id, odoo_id, context=None):
         """
         This method is used to get the suffix to identify the record in Odoo
