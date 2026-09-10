@@ -110,9 +110,11 @@ class TestResPartnerAddress(testing.OOTestCaseWithCursor):
             {'nv': 'New Street Name'},
         )
 
+        street = self.rpa_obj.read(
+            self.cursor, self.uid, partner_address_id, ['street'])['street']
         self.sync_obj.common_patch_odoo_record.assert_called_once_with(
             self.cursor, self.uid, 'res.partner.address', [partner_address_id],
-            {'nv': 'New Street Name'}, context={})
+            {'nv': 'New Street Name', 'street': street}, context={})
 
     def test__write__autosync_not_enabled_no_trigger(self):
         partner_address_id = self.imd_obj.get_object_reference(
