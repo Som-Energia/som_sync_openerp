@@ -99,8 +99,8 @@ class ResPartnerAddress(osv.osv):
                 or any(field in vals.keys() for field in self.MAPPING_TRIGGER_WRITE.keys())):
             with Sudo(uid=1, gid=0):
                 sync_obj = self.pool.get('odoo.sync')
-                sync_obj.common_sync_model_create_update(
-                    cr, uid, self._name, 'write', ids, context=context
+                sync_obj.common_patch_odoo_record(
+                    cr, uid, self._name, ids, vals, context=context
                 )
 
         return res

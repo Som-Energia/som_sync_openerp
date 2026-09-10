@@ -109,8 +109,8 @@ class ResPartner(osv.osv):
         if any(field in vals for field in self.MAPPING_TRIGGER_WRITE):
             with Sudo(uid=1, gid=0):
                 sync_obj = self.pool.get('odoo.sync')
-                sync_obj.common_sync_model_create_update(
-                    cr, uid, self._name, 'write', ids, context=context)
+                sync_obj.common_patch_odoo_record(
+                    cr, uid, self._name, ids, vals, context=context)
 
         return res
 
@@ -126,7 +126,7 @@ class ResPartner(osv.osv):
         """
         if context is None:
             context = {}
-        if data['vat']:
+        if data.get('vat'):
             data['vat'] = data['vat'].upper()
         if data.get('lang', False) and data['lang'] == 'en_US':
             data['lang'] = 'en_GB'
