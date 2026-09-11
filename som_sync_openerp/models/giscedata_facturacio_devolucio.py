@@ -136,11 +136,14 @@ class GiscedataFacturacioDevolucio(osv.osv):
             line_obj = self.pool.get('giscedata.facturacio.devolucio.linia')
             sync_obj = self.pool.get('odoo.sync')
             for devolucio_id in ids:
+                line_ids = line_obj.search(cr, uid, [
+                    ('devolucio_id', '=', devolucio_id),
+                ], context=context)
                 pending_line_ids = line_obj.search(cr, uid, [
                     ('devolucio_id', '=', devolucio_id),
                     ('linia_processada', '!=', True),
                 ], context=context)
-                if states[devolucio_id] != 'confirmat' and not pending_line_ids:
+                if states[devolucio_id] != 'confirmat' and line_ids and not pending_line_ids:
                     with Sudo(uid=1, gid=0):
                         sync_obj.common_sync_model_create_update(
                             cr, uid, self._name, 'create', devolucio_id,
