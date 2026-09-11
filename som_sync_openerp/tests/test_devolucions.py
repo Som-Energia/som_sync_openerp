@@ -89,6 +89,7 @@ class TestDevolucions(testing.OOTestCaseWithCursor):
         mock_sync_model_enabled.return_value = (True, True, False)
         vals = self._crear_devolucion_factura()
         devolucio_id = vals['devolucio_id']
+        mock_sync.reset_mock()
 
         self.dev_obj.write(
             self.cursor, self.uid, devolucio_id, {'state': 'validar'}, context={})
@@ -116,6 +117,7 @@ class TestDevolucions(testing.OOTestCaseWithCursor):
         mock_sync_model_enabled.return_value = (True, True, False)
         vals = self._crear_devolucion_factura()
         devolucio_id = vals['devolucio_id']
+        mock_sync.reset_mock()
 
         self.dev_obj.write(
             self.cursor, self.uid, devolucio_id, {'state': 'validar'}, context={})
