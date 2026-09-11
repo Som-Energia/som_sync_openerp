@@ -82,11 +82,13 @@ class TestDevolucions(testing.OOTestCaseWithCursor):
         )
         self.assertEqual(mock_common_sync_model_create_update.call_count, len(expected_lines))
 
-    @mock.patch.object(odoo_sync.OdooSync, 'common_sync_model_create_update')
-    def test_syncs_when_all_lines_are_processed(self, mock_sync):
+    @mock.patch.object(odoo_sync.OdooSync, 'syncronize_sync')
+    @mock.patch.object(odoo_sync.OdooSync, 'sync_model_enabled_amplified')
+    def test_syncs_when_all_lines_are_processed(
+            self, mock_sync_model_enabled, mock_sync):
+        mock_sync_model_enabled.return_value = (True, True, False)
         vals = self._crear_devolucion_factura()
         devolucio_id = vals['devolucio_id']
-        mock_sync.reset_mock()
 
         self.dev_obj.write(
             self.cursor, self.uid, devolucio_id, {'state': 'validar'}, context={})
@@ -107,15 +109,31 @@ class TestDevolucions(testing.OOTestCaseWithCursor):
             self.cursor, self.uid, 'giscedata.facturacio.devolucio', 'create',
             devolucio_id, context={})
 
-    @mock.patch.object(odoo_sync.OdooSync, 'common_sync_model_create_update')
-    def test_does_not_sync_incomplete_manually_confirmed_devolution(self, mock_sync):
+    @mock.patch.object(odoo_sync.OdooSync, 'syncronize_sync')
+    @mock.patch.object(odoo_sync.OdooSync, 'sync_model_enabled_amplified')
+    def test_does_not_sync_incomplete_manually_confirmed_devolution(
+            self, mock_sync_model_enabled, mock_sync):
+        mock_sync_model_enabled.return_value = (True, True, False)
         vals = self._crear_devolucion_factura()
         devolucio_id = vals['devolucio_id']
-        mock_sync.reset_mock()
 
         self.dev_obj.write(
             self.cursor, self.uid, devolucio_id, {'state': 'validar'}, context={})
         self.dev_obj.action_marcar_confirmada(
             self.cursor, self.uid, [devolucio_id], context={})
+
+        mock_sync.assert_not_called()
+
+    @mock.patch.object(odoo_sync.OdooSync, 'syncronize_sync')
+    @mock.patch.object(odoo_sync.OdooSync, 'sync_model_enabled_amplified')
+    def test_does_not_sync_confirmed_devolution_without_lines(
+            self, mock_sync_model_enabled, mock_sync):
+        mock_sync_model_enabled.return_value = (True, True, False)
+        devolucio_id = self.dev_obj.create(
+            self.cursor, self.uid, {'name': 'Devolucio sense linies'}, context={})
+
+        self.dev_obj.write(
+            self.cursor, self.uid, devolucio_id,
+            {'state': 'confirmat'}, context={})
 
         mock_sync.assert_not_called()
